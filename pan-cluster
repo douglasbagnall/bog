@@ -1,0 +1,80 @@
+#!/usr/bin/python
+
+import argparse
+import os
+import sys
+import subprocess
+import json
+import errno
+
+from meta import read_info_json
+
+
+def makepath(fragments):
+    fn = os.path.join(*fragments)
+    d = os.path.dirname(fn)
+    try:
+        os.makedirs(d)
+    except OSError, e:
+        if e.errno != errno.EEXIST:
+            raise
+    return fn
+
+
+def write_clusters_json(clusters, *dirpath):
+    json_clusters = []
+    for cluster in clusters:
+        json_clusters.append([{'document': x} for x in cluster])
+
+    fn = makepath(dirpath + ["clustering.json"])
+    f = open(fn, 'w')
+    json.dump(f, json_clusters, indent=4)
+    f.close()
+
+
+def write_attractions_json(attractions, *dirpath):
+    json_pairs = []
+    for a, b, p in attractions:
+        json_pairs.append({'document1': a,
+                           'document2': b,
+                           'score': p})
+    fn = makepath(dirpath + ["ranking.json"])
+    f = open(fn, 'w')
+    json.dump(f, json_pairs, indent=4)
+    f.close()
+
+
+def write_answers_for_lang(lang, tasks, input_dir, output_dir):
+    # 1. make a model of the language.
+    # 2. Look for clusters in each task
+
+    # model needs to find text identity -- the same text in more than
+    # one task should only be modelled once.
+    #
+    # (text identity can be decided *after* preprocessing)
+
+    print "looking at %d clusters in lang %s" % (len(tasks), lang)
+
+    cmd = ['./pan-cluster-lang', lang,
+           '-i', input_dir, '-o', output_dir
+           ]
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--input-dir', help="find testing corpus here")
+    parser.add_argument('-o', '--output-dir', help="write results here")
+
+    args = parser.parse_args()
+
+    info = read_info_json(args.input_dir)
+
+    lang_tasks = {}
+    for subdir, lang, genre in info:
+        tasks = lang_tasks.setdefault(lang, [])
+        tasks.append(subdir)
+
+    for lang, tasks in lang_tasks.items():
+        write_answers_for_lang(lang, tasks, args.input_dir, args.output_dir)
+
+main()

@@ -1,0 +1,247 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+import os
+import argparse
+import re
+import language
+import unicodedata
+from collections import Counter
+
+
+def count_words_doc_freq(texts, ignore_case=False):
+    bags = [language.split_words(x, ignore_case=ignore_case) for x in texts]
+    c = Counter()
+    for b in bags:
+        c.update(set(b))
+    language.print_word_counts(c)
+
+
+def count_words(text, ignore_case=False):
+    words = language.split_words(text, ignore_case=ignore_case)
+    c = Counter(x for x in words if x)
+    language.print_word_counts(c)
+
+
+def count_chars(text, decompose=False, category=None):
+    counts = language.count_chars(text, decompose)
+    if category is not None:
+        counts = [(c, n) for c, n in counts
+                  if re.match(category, unicodedata.category(c))]
+    total = float(sum(x[1] for x in counts))
+    for c, n in counts:
+        print "%7d %.6f %4s %5x %5s" % (n, n / total, unicodedata.category(c),
+                                        ord(c), c.encode('utf8'))
+    print "%d unique characters, %d total" % (len(counts), total)
+
+
+def list_chars(text, decompose=False, category=None):
+    chars = (c for c, n in language.count_chars(text, decompose))
+    if category is not None:
+        chars = (x for x in chars if re.match(category,
+                                              unicodedata.category(x)))
+    print ''.join(chars)
+
+
+def print_char_map(text, threshold=2e-5, decompose=False,
+                   collapse_digits=True, dotellipses=True,
+                   ignore_case=False, collapse_latin=False,
+                   decompose_caps=False, collapse_dashes=True,
+                   collapse_brackets=True):
+
+    print '# -*- coding: utf-8 -*-'
+    print '# OPTIONS: threshold %s, %s' % (threshold,
+                                           ' '.join(k for k, v in
+                                                    vars().items()
+                                                    if v))
+
+    counts = language.count_chars(text, decompose)
+    total = sum(x[1] for x in counts)
+
+    if isinstance(threshold, float):
+        threshold = int(total * threshold)
+
+    discounted = language.discountable_chars
+
+    specials = {c: ('', 'dispensible')
+                for c in language.dispensible_chars}
+
+    specials.update((c, ("'", 'single quote'))
+                    for c in language.single_quotes)
+    specials.update((c, ('"', 'double quote'))
+                    for c in language.double_quotes)
+
+    specials[u'\t'] = ('  ', 'tab')
+
+    if dotellipses:
+        specials["…".decode('utf8')] = ('...', 'ellipses')
+
+    if collapse_digits:
+        specials.update((x, ('7', 'digit')) for x in u'0123456789')
+
+    if collapse_latin:
+        specials.update((x, ('S', 'latin')) for x in
+                        u'ABCDEFGHIJKLMNOPQRSTUVWXYZ')
+        specials.update((x, ('s', 'latin')) for x in
+                        u'abcdefghijklmnopqrstuvwxyz')
+
+    if collapse_dashes:
+        specials.update((x, (u'\u2014', 'unified dash')) for x in
+                        u'\u2010\u2012\u2013\u2014')
+
+    if collapse_brackets:
+        specials.update((x, (u'(', 'brackets')) for x in u'[{')
+        specials.update((x, (u')', 'brackets')) for x in u']}')
+
+    remapped_chars = set()
+    print 'charmap = {'
+    #for c, n in sorted(counts):
+    for c, n in counts:
+        if c in discounted:
+            discount = discounted[c]
+            n *= discount
+            msg = '(includes discount to %s)' % discount
+        else:
+            msg = ''
+        m, note = specials.get(c, (c, ''))
+        category = unicodedata.category(c)
+        if category[0] != 'L':
+            if c not in specials:
+                if n < threshold:
+                    m = ''
+                    note = 'removed %s, %d < %d %s' % (category, n,
+                                                       threshold, msg)
+                else:
+                    note = 'kept %s (%d) %s' % (category, n, msg)
+        elif n < threshold:  # a letter, keep for now
+            note = 'kept letter under threshold %d < %d' % (n, threshold)
+
+        if ignore_case:
+            m = m.lower()
+            note = "ignore case %s" % note
+        elif decompose_caps and category == 'Lu':
+            m = u'\u00B9' + m.lower()
+            note = "decomposed caps %s" % note
+
+        if ord(c) > 127 or (len(m) == 1 and ord(m) > 127):
+            s = '"%s" -> "%s" ' % (c.encode('utf-8'), m.encode('utf-8'))
+            note = "%-12s %s %s" % (s, note, unicodedata.name(c, '<unknown>'))
+
+        if note:
+            s = "    %r: %r," % (c, m)
+            print "%-30s  # %s" % (s, note.rstrip())
+        else:
+            print "    %r: %r," % (c, m)
+        remapped_chars.update(m)
+
+    print "}"
+    print "# mapping %d characters to %d, (%s)" % (len(counts),
+                                                   len(remapped_chars),
+                                                   ("decomposed" if decompose
+                                                    else "composed"))
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('lang', help="the language to look at")
+
+    parser.add_argument('-c', '--count-chars', action='store_true',
+                        help="count the characters")
+
+    parser.add_argument('--count-words', action='store_true',
+                        help="count the words")
+
+    parser.add_argument('--count-words-doc-freq', action='store_true',
+                        help="count how many documents each word appears in")
+
+    parser.add_argument('-m', '--char-map', action='store_true',
+                        help="print dictionary remapping for this language")
+
+    parser.add_argument('--char-map-threshold', default=2e-5, type=float,
+                        help="char-map discards chars less frequant than this")
+
+    parser.add_argument('-l', '--list-chars', action='store_true',
+                        help="print a string of the characters")
+
+    parser.add_argument('-d', '--decompose-unicode', action='store_true',
+                        help="decompose characters")
+
+    parser.add_argument('-C', '--unicode-category',
+                        help=("only list/count characters whose category "
+                              "match this RE"))
+
+    parser.add_argument('-i', '--ignore-case', action='store_true',
+                        help="be case-insensitive")
+
+    parser.add_argument('--decompose-caps', action='store_true',
+                        help="treat caps as composed characters")
+
+    parser.add_argument('--collapse-latin', action='store_true',
+                        help="Treat all latin characters the same")
+
+    parser.add_argument('--write-remapped-text', metavar='DIR',
+                        help=("write remapped text here"))
+
+    parser.add_argument('--corpus', default=language.CORPUS,
+                        help=("read text from this alternative corpus"))
+
+    args = parser.parse_args()
+    lang = args.lang
+
+    texts = None
+    full_text = None
+    problems = None
+    raw_text = None
+
+    want_raw_text = (args.char_map or
+                     args.count_chars or
+                     args.list_chars)
+
+    want_remapped_text = (args.count_words or
+                          args.count_words_doc_freq or
+                          args.write_remapped_text)
+
+    # possibly redirected attention to an alternative corpus or single
+    # file.
+    if os.path.isdir(args.corpus):
+        if want_remapped_text:
+            texts, problems = language.load_corpus(args.corpus, lang)
+            full_text = '\n'.join(texts.values())
+        if want_raw_text:
+            raw_text = language.concat_corpus(args.corpus, lang, raw=True)
+    else:
+        if want_remapped_text:
+            full_text, tid = language.get_text_and_id(args.corpus)
+            texts = {tid: full_text}
+        if want_raw_text:
+            raw_text = language.read_file(args.corpus)
+
+    if args.count_words_doc_freq:
+        count_words_doc_freq(texts, ignore_case=args.ignore_case)
+
+    if args.char_map:
+        print_char_map(raw_text, threshold=args.char_map_threshold,
+                       decompose=args.decompose_unicode,
+                       ignore_case=args.ignore_case,
+                       collapse_latin=args.collapse_latin,
+                       decompose_caps=args.decompose_caps)
+        return
+
+    if args.count_chars:
+        count_chars(raw_text, decompose=args.decompose_unicode,
+                    category=args.unicode_category)
+
+    if args.list_chars:
+        list_chars(raw_text, decompose=args.decompose_unicode,
+                   category=args.unicode_category)
+
+    if args.count_words:
+        count_words(full_text, ignore_case=args.ignore_case)
+
+    if args.write_remapped_text:
+        for k, v in texts.items():
+            fn = os.path.join(args.write_remapped_text, "%s.txt" % (k,))
+            f = open(fn, 'w')
+            f.write(v)
+            f.close()
+
+main()

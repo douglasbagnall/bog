@@ -1,0 +1,47 @@
+#!/usr/bin/python -B
+# -*- coding: utf-8 -*-
+import colour
+import sys
+import imp
+
+
+def main():
+    charmaps = {}
+    for i, fn in enumerate(sys.argv[1:]):
+        m = imp.load_source('m%d' % i, fn)
+        charmaps[fn] = set(m.charmap.items())
+
+    common = charmaps[sys.argv[1]].copy()
+    common_keys = set(k for k, v in common)
+    common_values = set(v for k, v in common)
+    for fn in sys.argv[2:]:
+        m = charmaps[fn]
+        common &= m
+        common_keys &= set(k for k, v in m)
+        common_values &= set(v for k, v in m)
+
+    for fn in sys.argv[1:]:
+        m = charmaps[fn]
+        unique = m - common
+        keys = set(k for k, v in m)
+        values = set(v for k, v in m)
+        unique_keys = keys - common_keys
+        unique_values = values - common_values
+        colour.print_RED(fn)
+        for k, v in unique:
+            if k in unique_keys:
+                ck = colour.YELLOW
+            else:
+                ck = ''
+            if v in unique_values:
+                cv = colour.GREEN
+            else:
+                cv = ''
+            print "   %s%9r%s : %s%9r%s" % (ck, k, colour.C_NORMAL,
+                                            cv, v, colour.C_NORMAL)
+
+        print "unique values:"
+        print ',  '.join(v for v in unique_values)
+        print
+
+main()

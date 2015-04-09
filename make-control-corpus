@@ -1,0 +1,68 @@
+#!/bin/bash -e
+
+# This was constructed after the fact to document the steps taken.
+# It may not actually work.
+
+CORPUS_DIR=$(git rev-parse --show-toplevel)/corpus
+
+cd $CORPUS_DIR
+
+mkdir 2013 2014 2015
+
+cd 2013
+unzip ../zips/pan13-authorship-verification-training-corpus-2013-02-01.zip
+
+cd ../2014
+# 2014 had zips of zips
+unzip ../zips/pan14-authorship-verification-test-corpus1-2014-04-22.zip
+unzip ../zips/pan14-authorship-verification-test-corpus2-2014-04-22.zip
+for x in *.zip; do
+    unzip $x
+done
+
+cd ../2015
+for x in dutch english greek; do
+    unzip *-$x-2015-03-02.zip
+    unzip *-$x-2015-04-19.zip
+done
+
+cd $CORPUS_DIR
+
+mkdir -p control/en control/nl control/gr
+
+
+for f in `find 201[45]/*dutch* -name '*know*.txt' -size +200c`; do
+    cp $f control/nl/$(sha1sum $f | cut -d' ' -f1).txt
+done
+
+for f in `find 201[45]/*english* -name '*know*.txt' -size +200c`; do
+    cp $f control/en/$(sha1sum $f | cut -d' ' -f1).txt
+done
+
+for f in `find 201[45]/*greek* -name '*know*.txt' -size +200c`; do
+    cp $f control/gr/$(sha1sum $f | cut -d' ' -f1).txt
+done
+
+# 2013 has Greek and English, no Dutch
+for f in `find 2013/pan13-authorship-verification-training-corpus-2013-02-01/GR* -name '*know*.txt' -size +200c `; do
+    cp $f ../control/gr/$(sha1sum $f | cut -d' ' -f1).txt
+done
+for f in `find 2013/pan13-authorship-verification-training-corpus-2013-02-01/EN* -name '*know*.txt' -size +200c `; do
+    cp $f ../control/en/$(sha1sum $f | cut -d' ' -f1).txt
+done
+
+# remove near duplicates -- though this tends to remove both versions
+rm `sim_text -T -p control/en/* | cut -d' ' -f1`
+rm `sim_text -T -p control/nl/* | cut -d' ' -f1`
+rm `sim_text -T -p control/gr/* | cut -d' ' -f1`
+
+rm `sim_text -R -T -p control/ pan16-author-clustering-training-dataset-2016-02-17/ | grep -oP 'control/\w{2}/\w+\.txt'`
+
+# save just a few for validation
+cd $CORPUS_DIR
+mkdir -p validation/en validation/gr validation/nl
+
+mv control/en/9c60d5efa0e9599d5cb3a627244c6e691b9aadbc.txt validation/en/
+mv control/gr/d93db209972f3fe0d5acb5bb40a3ca8f9d8fe188.txt validation/gr/
+mv control/nl/361d97f1a1e2ff253fe4afce0b66b04a10f51026.txt validation/nl/
+mv control/nl/70eb1fee9573f0966b06c9089e33b25c482b6b94.txt validation/nl/

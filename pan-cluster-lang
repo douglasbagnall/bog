@@ -1,0 +1,246 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+import os
+import sys
+HERE = os.path.dirname(__file__)
+sys.path.append(HERE)
+import argparse
+import charmodel
+import random
+import json
+
+import language
+
+from meta import write_answers
+
+
+def calc_ventropy_change(ventropies, prev_ventropies):
+    ve_sum = 0.0
+    ve_sum2 = 0.0
+    ve_diff_sum = 0.0
+    ve_diff_sum2 = 0.0
+    for prev, e in zip(prev_ventropies, ventropies):
+        diff = prev - e
+        ve_diff_sum += diff
+        ve_diff_sum2 += diff * diff
+        ve_sum += e
+        ve_sum2 += e * e
+    ve_scale = 1.0 / len(ventropies)
+    prev_ventropies = ventropies
+    ve_mean = ve_sum * ve_scale
+    ve_stddev = (ve_sum2 * ve_scale - ve_mean * ve_mean) ** 0.5
+    ve_diff_mean = ve_diff_sum * ve_scale
+    ve_diff_stddev = (ve_diff_sum2 * ve_scale -
+                      ve_diff_mean * ve_diff_mean) ** 0.5
+
+    return (ve_mean, ve_stddev, ve_diff_mean, ve_diff_stddev)
+
+
+def write_results(net, fn, texts, ignore_start):
+    results = get_jensen_shannon_distances(net, texts, ignore_start)
+    write_answers(fn, sigmoid_results(results))
+
+
+def train(net, texts, leakage, epochs, leakage_decay,
+          learn_rate_decay, ignore_start, trace, validation_text):
+
+    prev_ventropies = net.test(validation_text, ignore_start, 1)
+
+    for i in range(epochs):
+        print ("starting epoch %d with learn-rate %s, "
+               "leakage %s" % (i + 1, net.learn_rate, leakage))
+
+        for name, text in texts.items():
+            net.train(text, name, leakage=leakage,
+                      ignore_start=ignore_start)
+
+        ventropies = net.test(validation_text, ignore_start, 1)
+        vstats = calc_ventropy_change(ventropies, prev_ventropies)
+        prev_ventropies = ventropies
+        print ("validation entropy %.3f±%.3f  diff % .3f±%.3f" % vstats)
+
+        net.save()
+        leakage *= leakage_decay
+        net.learn_rate *= learn_rate_decay
+
+        if trace is not None:
+            fn = trace % i
+            write_results(net, fn, ignore_start)
+
+
+def get_net_and_corpus(srcdir, controldir, control_n, lang,
+                       reverse, validation_dir, net_kwargs):
+
+    texts, problems = language.load_corpus(srcdir, lang)
+
+    if control_n and controldir:
+        control_texts, _ = language.load_control_texts(controldir, lang)
+
+        if len(texts) > control_n:
+            # sort, to avoid hashing indeterminacy
+            c_items = sorted(texts.items())
+            random.shuffle(c_items)
+            control_texts = dict(c_items[:control_n])
+
+        texts.update(control_texts)
+
+    # remap into net enumeration encoding
+    alphabet = charmodel.Alphabet(''.join(texts.values()), ignore_case=False,
+                                  threshold=1e-10)
+    print >>sys.stderr, "alphabet is %s" % (alphabet.alphabet,)
+
+    remapped = {}
+    for k, v in texts.iteritems():
+        t = alphabet.encode_text(v)
+        if reverse:
+            t = ''.join(reversed(t))
+        remapped[k] = t
+
+    if validation_dir:
+        # validation text doesn't go in texts.
+        v_texts, _ = language.load_control_texts(validation_dir, lang)
+        v_text = alphabet.encode_text('\n'.join(v_texts.values()))
+        if reverse:
+            v_text = ''.join(reversed(v_text))
+
+    textnames = sorted(texts.keys())
+
+    metadata = json.dumps({
+        'alphabet': alphabet.alphabet,
+        'collapse_chars': alphabet.collapsed_chars,
+        'version': 2,
+        'class_names': textnames,
+        'case_insensitive': False,
+        'utf8': True,
+        'collapse_space': False,
+        'reverse': reverse,
+    }, sort_keys=True)
+
+    net = charmodel.Net(alphabet, textnames, metadata=metadata, **net_kwargs)
+    return net, remapped, problems, v_text
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    rnn_args = parser.add_argument_group('RNN arguments')
+
+    parser.add_argument('lang', help="the language to look at")
+    parser.add_argument('--corpus', default=language.CORPUS,
+                        help=("read text from this alternative corpus"))
+    parser.add_argument('-n', '--basename',
+                        help="base filenames upon this")
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help="print more to stderr")
+    parser.add_argument('-r', '--rng-seed', type=int, default=-1,
+                        help="rng seed (-1 for auto)")
+
+    parser.add_argument('-c', '--control-corpus',
+                        default=language.CONTROL_CORPUS,
+                        help="use this alternative control corpus")
+    parser.add_argument('--validation-corpus',
+                        default=language.VALIDATION_CORPUS,
+                        help="use this text for validation")
+    parser.add_argument('-C', '--control-n', default=0,
+                        help="how many controls to add")
+    parser.add_argument('--reverse', action='store_true',
+                        help="process all texts in reverse")
+    parser.add_argument('--epoch-trace',
+                        help=("write raw answers after every epoch "
+                              "(put %%d in name)"))
+
+    rnn_args.add_argument('-H', '--hidden-size', type=int, default=199,
+                          metavar='<nodes>', help="number of hidden nodes")
+    rnn_args.add_argument('-e', '--sub-epochs', type=int, default=1,
+                          help="how many cycles through the texts to do")
+    rnn_args.add_argument('--batch-size', type=int, default=20,
+                          metavar='<int>', help="mini-batch size")
+    rnn_args.add_argument('--presynaptic-noise', type=float, default=0.1,
+                          metavar='<float>',
+                          help="Add this much presynaptic noise")
+    rnn_args.add_argument('-l', '--learn-rate', type=float, default=1e-1,
+                          help=charmodel.Net.learn_rate.__doc__)
+    rnn_args.add_argument('-L', '--leakage', type=float, default=-1.0,
+                          help=("how much training leaks into other classes "
+                                "[0-1] or negative"))
+    rnn_args.add_argument('--leakage-decay', type=float, default=1.0,
+                          help="change in leakage per sub-epoch")
+    rnn_args.add_argument('--learn-rate-decay', type=float, default=1,
+                          help="change in learn-rate per sub-epoch")
+    rnn_args.add_argument('-m', '--momentum', type=float, default=0.95,
+                          metavar='<0-1>', help=charmodel.Net.momentum.__doc__)
+    rnn_args.add_argument('--momentum-weight', type=float, default=0.5,
+                          metavar='<0-1>',
+                          help=charmodel.Net.momentum_weight.__doc__)
+    rnn_args.add_argument('--log-file', default=None,
+                          help="log to this file")
+    rnn_args.add_argument('--enable-fp-exceptions', action='store_true',
+                          help="crash on bad floating point errors")
+    rnn_args.add_argument('--temporal-pgm-dump', action='store_true',
+                          help=("save images showing changing state "
+                                "of input/error vectors"))
+    rnn_args.add_argument('--periodic-pgm-dump',
+                          metavar='"({ih,ho,bi}{w,m,d,t})*"',
+                          help=("Periodically dump images of weights;"
+                                "string determines which"))
+    rnn_args.add_argument('--periodic-pgm-period', type=int, default=10000,
+                          help=("periodicity of periodic-pgm-dump"))
+    rnn_args.add_argument('--learning-method', type=int, default=4,
+                          help=("0: weighted, 2: simplified N., "
+                                "3: classical, 4: adagrad"))
+    rnn_args.add_argument('--activation', type=int, default=2,
+                          help=("1: ReLU, 2: ReSQRT, 3: ReLOG, 4: "
+                                "ReTANH, 5: clipped ReLU"))
+    rnn_args.add_argument('-d', '--bptt-depth', type=int, default=50,
+                          help="how far to backpropagate through time")
+    rnn_args.add_argument('-i', '--ignore-start', type=int, default=0,
+                          help="don't train on this many characters at start")
+    rnn_args.add_argument('-f', '--filename',
+                          help="save net here")
+    rnn_args.add_argument('--init-method', type=int,
+                          default=charmodel.INIT_FLAT,
+                          help="0: zeros, 1: flat, 2: fan-in, 3: runs")
+
+    args = parser.parse_args()
+
+    if args.enable_fp_exceptions:
+        charmodel.enable_fp_exceptions()
+
+    if args.rng_seed != -1:
+        random.seed(args.rng_seed)
+
+    net_kwargs = {}
+    for k, v in vars(args).items():
+        if k in ("bptt_depth",
+                 "hidden_size",
+                 "rng_seed",
+                 "log_file",
+                 "verbose",
+                 "learn_rate",
+                 "temporal_pgm_dump",
+                 "periodic_pgm_dump",
+                 "periodic_pgm_period",
+                 "basename",
+                 "activation",
+                 "learning_method",
+                 "batch_size",
+                 "filename",
+                 "presynaptic_noise",
+                 "init_method",
+            ):
+            net_kwargs[k] = v
+
+    net, texts, problems, v_text = get_net_and_corpus(args.corpus,
+                                                      args.control_corpus,
+                                                      args.control_n,
+                                                      args.lang,
+                                                      args.reverse,
+                                                      args.validation_corpus,
+                                                      net_kwargs)
+
+    train(net, texts, args.leakage, args.sub_epochs,
+          args.leakage_decay, args.learn_rate_decay, args.ignore_start,
+          args.epoch_trace, v_text)
+
+
+main()
