@@ -9,10 +9,109 @@ import argparse
 import charmodel
 import random
 import json
+import numpy as np
 
 import language
 
-from meta import write_answers
+from meta import write_results
+
+
+def opine(net, texts, problems, ignore_start):
+    affinities = []
+    for pid, records in problems:
+        entropy_sum = 0.0
+        entropy_matrix = []
+        text_ids = [x[2] for x in records]
+        for fn, ffn, tid in records:
+            text = texts[tid]
+            # get entropies as a dictionary, indexed by fn. (because
+            # we don't care about ones that aren't in the problem,
+            # except to get an idea of average cross-entropy).
+            entropies = net.test(text, ignore_start, 0)
+            entropy_sum += sum(entropies.values())
+            entropy_matrix.append([entropies[x] for x in text_ids])
+        mean_score = 2.0 * entropy_sum / (len(p) * len(entropies))
+        entropy_matrix = np.array(entropy_matrix)
+        score_matrix = entropy_matrix + entropy_matrix.T
+        score_matrix -= mean_score
+
+        print entropy_matrix.shape
+        print len(entropies), mean_score
+        affinities.append(mean_score)
+
+    # XXX not symetricising
+    return affinities
+
+
+def entropy_to_p(raw_affinities):
+    x = np.max(raw_affinities, -40.0)
+    x = np.min(x, 40.0)
+    affinities = 1.0 / (1.0 + np.exp(x))
+    return affinities
+
+
+def links_to_clusters(links):
+    symlinks = links | links.T
+    n = links.shape[0]
+    cluster_map = range(n)
+    for i in range(n):
+        c = cluster_map[i]
+        for j in range(c + 1, n):
+            if symlinks[i, j]:
+                cluster_map[j] = c
+    clusters = {}
+    for i, c in enumerate(cluster_map):
+        clusters.setdefault(c, []).append(i)
+    return clusters
+
+
+def p_to_affinities(input, samples=100):
+    """Treat the input array as a (somehow) scaled probability that two
+    nodes are linked. The probability that they're in the same cluster
+    has a transitive element.
+    """
+    totals = np.zeros_like(input)
+    scale = 1.0 / samples
+    for i in range(samples):
+        r = np.random(p.shape)
+        p = input * (i * scale)
+        links = r < p
+        clusters = links_to_clusters(links)
+
+        print "found %d clusters" % len(clusters)
+        if len(clusters) == 1:
+            total += scale
+            continue
+        result = np.zeros_like(input)
+        for v in clusters.values():
+            for x in v:
+                for y in v:
+                    result[x, y] = scale
+
+        totals += result
+
+    return totals
+
+
+def affinities_to_clusters(affinities, threshold=None, n_min=None):
+    if threshold is None and n_min is None:
+        # lets try to find a threshold that will give us a middle
+        # number of clusters.
+        top = np.max(affinities)
+        bottom = np.min(affinities)
+        threshold = (top + bottom) * 0.5
+
+    if threshold is None:
+        for threshold in sorted(set(affinities)):
+            links = affinities > threshold
+            clusters = links_to_clusters(affinities, threshold)
+            if len(clusters) > n_min:
+                break
+    else:
+        links = affinities > threshold
+        clusters = links_to_clusters(links)
+
+    return clusters
 
 
 def calc_ventropy_change(ventropies, prev_ventropies):
@@ -27,7 +126,6 @@ def calc_ventropy_change(ventropies, prev_ventropies):
         ve_sum += e
         ve_sum2 += e * e
     ve_scale = 1.0 / len(ventropies)
-    prev_ventropies = ventropies
     ve_mean = ve_sum * ve_scale
     ve_stddev = (ve_sum2 * ve_scale - ve_mean * ve_mean) ** 0.5
     ve_diff_mean = ve_diff_sum * ve_scale
@@ -242,5 +340,13 @@ def main():
           args.leakage_decay, args.learn_rate_decay, args.ignore_start,
           args.epoch_trace, v_text)
 
+    raw_affinities = opine(net, texts, problems, args.ignore_start)
+
+
+    p_affinities = entropy_to_p(raw_affinities)
+    transitive_affinities = p_to_affinities(p_affinities)
+    clusters = affinities_to_clusters(p_affinities)
+
+    write_results(args.output_dir, lang, transitive_affinities, clusters)
 
 main()
