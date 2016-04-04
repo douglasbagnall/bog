@@ -36,7 +36,4 @@ mappings/en.py:
 mappings/gr.py:
 	./corpus-utils -m gr -d --decompose-caps --collapse-latin > $@
 
-all-mappings: mappings/gr.py mappings/en.py  mappings/es.py mappings/nl.py
-
-answers-rev:
-	make-answers.sh
+all-mappings: mappings/gr.py mappings/en.py mappings/nl.py
