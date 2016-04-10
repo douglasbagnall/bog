@@ -84,6 +84,7 @@ def entropy_to_p(raw_affinities):
     x = np.maximum(raw_affinities, -40.0)
     x = np.minimum(x, 40.0)
     affinities = 1.0 / (1.0 + np.exp(x))
+    #affinities = np.exp(-x)
     return affinities
 
 
