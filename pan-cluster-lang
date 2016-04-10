@@ -109,24 +109,38 @@ def p_to_affinities(input, samples=100):
     has a transitive element.
     """
     totals = np.zeros_like(input)
-    scale = 1.0 / samples
-    for i in range(samples):
+    scale = 0.1
+    min_scale = 1e-20
+    max_scale = 1.0 / (1e-3 + np.min(input))
+    runs = 100
+    while runs > 0:
+        scale = random.uniform(min_scale, max_scale)
+
         r = np.random.random(input.shape)
-        p = input * (i * scale)
+        p = input * scale
+
         links = r < p
         clusters = links_to_clusters(links)
 
+        print "scale is %g; min %g max %g" % (scale, min_scale, max_scale)
         print "found %d clusters" % len(clusters)
         if len(clusters) == 1:
-            totals += scale
+            # everything is connected, so the scale is too high
+            # make sure we don't go higher.
+            max_scale = scale
             continue
-        result = np.zeros_like(input)
+
+        if len(clusters) == input.shape[0]:
+            #nothing is connected
+            min_scale = scale
+            continue
+
         for v in clusters.values():
             for x in v:
                 for y in v:
-                    result[x, y] = scale
+                    totals[x, y] += 1.0
 
-        totals += result
+        runs -= 1
 
     return totals
 
