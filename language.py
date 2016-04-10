@@ -10,8 +10,8 @@ import mappings
 import meta
 
 HERE = os.path.dirname(__file__)
-CORPUS = os.path.join(HERE,
-                      'corpus/pan16-author-clustering-training-dataset-2016-02-17/')
+TRAINING_CORPUS = os.path.join(HERE,
+        'corpus/pan16-author-clustering-training-dataset-2016-02-17/')
 CONTROL_CORPUS = os.path.join(HERE,
                               'corpus/control/')
 

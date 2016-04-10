@@ -15,37 +15,56 @@ import language
 
 from meta import write_results
 
+OUTPUT_DIR = 'results'
+INPUT_DIR = language.TRAINING_CORPUS
 
-def opine(net, texts, problems, ignore_start):
+
+def opine(net, texts, problems, ignore_start, symmetric=False):
+    print "beginning opine"
     affinities = []
+    entropies_cache = {}
     for pid, records in problems:
         entropy_sum = 0.0
         entropy_matrix = []
         text_ids = [x[2] for x in records]
+        entropy_means = []
+        local_means = []
         for fn, ffn, tid in records:
-            text = texts[tid]
-            # get entropies as a dictionary, indexed by fn. (because
-            # we don't care about ones that aren't in the problem,
-            # except to get an idea of average cross-entropy).
-            entropies = net.test(text, ignore_start, 0)
-            entropy_sum += sum(entropies.values())
-            entropy_matrix.append([entropies[x] for x in text_ids])
-        mean_score = 2.0 * entropy_sum / (len(p) * len(entropies))
-        entropy_matrix = np.array(entropy_matrix)
-        score_matrix = entropy_matrix + entropy_matrix.T
-        score_matrix -= mean_score
+            if tid in entropies_cache:
+                entropies = entropies_cache[tid]
+            else:
+                text = texts[tid]
+                # get entropies as a dictionary, indexed by fn.
+                # (because we don't care about ones that aren't in the
+                # problem, except to get an idea of average
+                # cross-entropy).
+                entropies = net.test(text, ignore_start, 0)
+                entropies_cache[tid] = entropies
 
-        print entropy_matrix.shape
-        print len(entropies), mean_score
-        affinities.append(mean_score)
+            local_entropies = [entropies[x] for x in text_ids]
+            mean = sum(entropies.values()) / len(entropies)
+            entropy_matrix.append([x - mean for x in local_entropies])
+            local_means.append(sum(local_entropies) / len(text_ids))
+            entropy_means.append(mean)
+            # normalise better in future!
 
-    # XXX not symetricising
+        score_matrix = np.array(entropy_matrix)
+        if symmetric:
+            score_matrix += score_matrix.T
+
+        print score_matrix.shape
+        print ("local mean %.3f total mean %.3f" %
+               (sum(local_means) / len(local_means),
+                sum(entropy_means)/ len(entropy_means)))
+        affinities.append(score_matrix)
+        print score_matrix
     return affinities
 
 
 def entropy_to_p(raw_affinities):
-    x = np.max(raw_affinities, -40.0)
-    x = np.min(x, 40.0)
+    print raw_affinities
+    x = np.maximum(raw_affinities, -40.0)
+    x = np.minimum(x, 40.0)
     affinities = 1.0 / (1.0 + np.exp(x))
     return affinities
 
@@ -73,14 +92,14 @@ def p_to_affinities(input, samples=100):
     totals = np.zeros_like(input)
     scale = 1.0 / samples
     for i in range(samples):
-        r = np.random(p.shape)
+        r = np.random.random(input.shape)
         p = input * (i * scale)
         links = r < p
         clusters = links_to_clusters(links)
 
         print "found %d clusters" % len(clusters)
         if len(clusters) == 1:
-            total += scale
+            totals += scale
             continue
         result = np.zeros_like(input)
         for v in clusters.values():
@@ -169,7 +188,7 @@ def train(net, texts, leakage, epochs, leakage_decay,
 
 def get_net_and_corpus(srcdir, controldir, control_n, lang,
                        reverse, validation_dir, net_kwargs):
-
+    print srcdir
     texts, problems = language.load_corpus(srcdir, lang)
 
     if control_n and controldir:
@@ -218,13 +237,17 @@ def get_net_and_corpus(srcdir, controldir, control_n, lang,
     net = charmodel.Net(alphabet, textnames, metadata=metadata, **net_kwargs)
     return net, remapped, problems, v_text
 
-
 def main():
+    global OUTPUT_DIR, INPUT_DIR
     parser = argparse.ArgumentParser()
     rnn_args = parser.add_argument_group('RNN arguments')
 
     parser.add_argument('lang', help="the language to look at")
-    parser.add_argument('--corpus', default=language.CORPUS,
+    parser.add_argument('-i', '--input-dir', default=INPUT_DIR,
+                        help='find problems here')
+    parser.add_argument('-o', '--output-dir', default=OUTPUT_DIR,
+                        help='write results here')
+    parser.add_argument('--corpus', default=language.TRAINING_CORPUS,
                         help=("read text from this alternative corpus"))
     parser.add_argument('-n', '--basename',
                         help="base filenames upon this")
@@ -239,7 +262,7 @@ def main():
     parser.add_argument('--validation-corpus',
                         default=language.VALIDATION_CORPUS,
                         help="use this text for validation")
-    parser.add_argument('-C', '--control-n', default=0,
+    parser.add_argument('-C', '--control-n', default=0, #XXX up to n altogether?
                         help="how many controls to add")
     parser.add_argument('--reverse', action='store_true',
                         help="process all texts in reverse")
@@ -291,7 +314,7 @@ def main():
                                 "ReTANH, 5: clipped ReLU"))
     rnn_args.add_argument('-d', '--bptt-depth', type=int, default=50,
                           help="how far to backpropagate through time")
-    rnn_args.add_argument('-i', '--ignore-start', type=int, default=0,
+    rnn_args.add_argument('--ignore-start', type=int, default=0,
                           help="don't train on this many characters at start")
     rnn_args.add_argument('-f', '--filename',
                           help="save net here")
@@ -328,7 +351,7 @@ def main():
             ):
             net_kwargs[k] = v
 
-    net, texts, problems, v_text = get_net_and_corpus(args.corpus,
+    net, texts, problems, v_text = get_net_and_corpus(args.input_dir,
                                                       args.control_corpus,
                                                       args.control_n,
                                                       args.lang,
@@ -336,16 +359,17 @@ def main():
                                                       args.validation_corpus,
                                                       net_kwargs)
 
+    print problems.keys()
     train(net, texts, args.leakage, args.sub_epochs,
           args.leakage_decay, args.learn_rate_decay, args.ignore_start,
           args.epoch_trace, v_text)
 
-    raw_affinities = opine(net, texts, problems, args.ignore_start)
 
-
-    p_affinities = entropy_to_p(raw_affinities)
-    transitive_affinities = p_to_affinities(p_affinities)
-    clusters = affinities_to_clusters(p_affinities)
+    raw_affinities = opine(net, texts, problems.items(), args.ignore_start)
+    for problem_affinities in raw_affinities:
+        p_affinities = entropy_to_p(problem_affinities)
+        transitive_affinities = p_to_affinities(p_affinities)
+        clusters = affinities_to_clusters(transitive_affinities)
 
     write_results(args.output_dir, lang, transitive_affinities, clusters)
 

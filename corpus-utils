@@ -181,7 +181,7 @@ def main():
     parser.add_argument('--write-remapped-text', metavar='DIR',
                         help=("write remapped text here"))
 
-    parser.add_argument('--corpus', default=language.CORPUS,
+    parser.add_argument('--corpus', default=language.TRAINING_CORPUS,
                         help=("read text from this alternative corpus"))
 
     args = parser.parse_args()
