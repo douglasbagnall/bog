@@ -64,5 +64,5 @@ def write_attractions_json(attractions, *dirpath):
 
 
 def write_results(d, lang, title, affinities, clusters):
-    write_clusters_json(d, title, lang)
-    write_attractions_json(d, title, lang)
+    write_clusters_json(clusters, d, title, lang)
+    write_attractions_json(affinities, d, title, lang)
