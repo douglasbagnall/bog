@@ -188,7 +188,7 @@ def calc_ventropy_change(ventropies, prev_ventropies):
 
 
 def train(net, texts, leakage, epochs, leakage_decay,
-          learn_rate_decay, ignore_start, trace, validation_text):
+          learn_rate_decay, ignore_start, validation_text):
 
     prev_ventropies = net.test(validation_text, ignore_start, 1)
 
@@ -208,10 +208,6 @@ def train(net, texts, leakage, epochs, leakage_decay,
         net.save()
         leakage *= leakage_decay
         net.learn_rate *= learn_rate_decay
-
-        if trace is not None:
-            fn = trace % i
-            write_results(net, fn, ignore_start)
 
 
 def get_net_and_corpus(srcdir, controldir, control_n, lang,
@@ -294,9 +290,6 @@ def main():
                         help="how many controls to add")
     parser.add_argument('--reverse', action='store_true',
                         help="process all texts in reverse")
-    parser.add_argument('--epoch-trace',
-                        help=("write raw answers after every epoch "
-                              "(put %%d in name)"))
 
     rnn_args.add_argument('-H', '--hidden-size', type=int, default=199,
                           metavar='<nodes>', help="number of hidden nodes")
@@ -388,15 +381,17 @@ def main():
                                                       net_kwargs)
 
     print problems.keys()
+
     train(net, texts, args.leakage, args.sub_epochs,
           args.leakage_decay, args.learn_rate_decay, args.ignore_start,
-          args.epoch_trace, v_text)
+          v_text)
 
 
     raw_affinities = opine(net, texts, problems.items(), args.ignore_start)
     for problem_affinities in raw_affinities:
         p_affinities = entropy_to_p(problem_affinities)
         transitive_affinities = p_to_affinities(p_affinities)
+
         clusters = affinities_to_clusters(transitive_affinities)
 
     write_results(args.output_dir, args.lang, args.basename,
