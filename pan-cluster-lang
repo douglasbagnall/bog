@@ -19,10 +19,16 @@ OUTPUT_DIR = 'results'
 INPUT_DIR = language.TRAINING_CORPUS
 
 
-def opine(net, texts, problems, ignore_start, symmetric=False):
+def opine(net, texts, problems, ignore_start, symmetric=False,
+          normalise=True):
     print "beginning opine"
+    # Get the cross-entropy between all subnets against the texts of
+    # each problem. Because texts are often in more than one problem,
+    # we keep a cache (this is sort-of expensive).
+
     affinities = []
     entropies_cache = {}
+
     for pid, records in problems:
         entropy_sum = 0.0
         entropy_matrix = []
@@ -32,6 +38,7 @@ def opine(net, texts, problems, ignore_start, symmetric=False):
         for fn, ffn, tid in records:
             if tid in entropies_cache:
                 entropies = entropies_cache[tid]
+                print "using cached entropies for %s" % (tid,)
             else:
                 text = texts[tid]
                 # get entropies as a dictionary, indexed by fn.
@@ -42,22 +49,33 @@ def opine(net, texts, problems, ignore_start, symmetric=False):
                 entropies_cache[tid] = entropies
 
             local_entropies = [entropies[x] for x in text_ids]
-            mean = sum(entropies.values()) / len(entropies)
-            entropy_matrix.append([x - mean for x in local_entropies])
-            local_means.append(sum(local_entropies) / len(text_ids))
-            entropy_means.append(mean)
-            # normalise better in future!
+
+            if normalise:
+                #XXX should we use the "not in any problem" set?
+                local_set = set(text_ids)
+                control_entropies = [v for k, v in entropies.iteritems()
+                                     if k not in local_set]
+                control_entropy = sum(control_entropies)
+
+                if len(control_entropies) > 1:
+                    control_entropy /= len(control_entropies)
+
+                print ("found %d local entropies, mean is %3f" %
+                       (len(local_entropies),
+                        sum(local_entropies) / len(local_entropies)))
+                print ("found %d control entropies, mean is %3f" %
+                       (len(control_entropies), control_entropy))
+            else:
+                control_entropy = 0.0
+
+            entropy_matrix.append([x - control_entropy
+                                   for x in local_entropies])
 
         score_matrix = np.array(entropy_matrix)
         if symmetric:
             score_matrix += score_matrix.T
 
-        print score_matrix.shape
-        print ("local mean %.3f total mean %.3f" %
-               (sum(local_means) / len(local_means),
-                sum(entropy_means)/ len(entropy_means)))
         affinities.append(score_matrix)
-        print score_matrix
     return affinities
 
 
