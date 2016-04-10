@@ -166,6 +166,19 @@ def affinities_to_clusters(affinities, threshold=None, n_min=None):
     return clusters
 
 
+def write_opinions(net, texts, problems, ignore_start,
+                   output_dir, lang, basename):
+    raw_affinities = opine(net, texts, problems.items(), args.ignore_start)
+    for problem_affinities in raw_affinities:
+        p_affinities = entropy_to_p(problem_affinities)
+        transitive_affinities = p_to_affinities(p_affinities)
+
+        clusters = affinities_to_clusters(transitive_affinities)
+
+    write_results(args.output_dir, args.lang, args.basename,
+                  transitive_affinities, clusters)
+
+
 def calc_ventropy_change(ventropies, prev_ventropies):
     ve_sum = 0.0
     ve_sum2 = 0.0
@@ -386,15 +399,8 @@ def main():
           args.leakage_decay, args.learn_rate_decay, args.ignore_start,
           v_text)
 
+    write_opinions(net, texts, problems, args.ignore_start,
+                   args.output_dir, args.lang, args.basename)
 
-    raw_affinities = opine(net, texts, problems.items(), args.ignore_start)
-    for problem_affinities in raw_affinities:
-        p_affinities = entropy_to_p(problem_affinities)
-        transitive_affinities = p_to_affinities(p_affinities)
-
-        clusters = affinities_to_clusters(transitive_affinities)
-
-    write_results(args.output_dir, args.lang, args.basename,
-                  transitive_affinities, clusters)
 
 main()
