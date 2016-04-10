@@ -1,5 +1,4 @@
 #!/usr/bin/python
-
 import argparse
 import os
 import sys
@@ -9,55 +8,42 @@ import errno
 
 from meta import read_info_json
 
-
-def makepath(fragments):
-    fn = os.path.join(*fragments)
-    d = os.path.dirname(fn)
-    try:
-        os.makedirs(d)
-    except OSError, e:
-        if e.errno != errno.EEXIST:
-            raise
-    return fn
-
-
-def write_clusters_json(clusters, *dirpath):
-    json_clusters = []
-    for cluster in clusters:
-        json_clusters.append([{'document': x} for x in cluster])
-
-    fn = makepath(dirpath + ["clustering.json"])
-    f = open(fn, 'w')
-    json.dump(f, json_clusters, indent=4)
-    f.close()
-
-
-def write_attractions_json(attractions, *dirpath):
-    json_pairs = []
-    for a, b, p in attractions:
-        json_pairs.append({'document1': a,
-                           'document2': b,
-                           'score': p})
-    fn = makepath(dirpath + ["ranking.json"])
-    f = open(fn, 'w')
-    json.dump(f, json_pairs, indent=4)
-    f.close()
+config = {
+    'en' : (
+        ['-H99', '-V2', '--presynaptic-noise=0.3',],
+        ['-H79', '-V3', '--presynaptic-noise=0.1',],
+        ['-H119', '-V2', '--presynaptic-noise=0.3', '--reverse'],
+        ['-H199', '-e10', '--presynaptic-noise=1.0'],
+    ),
+    'gr' : (
+        ['-H99', '-V2', '--presynaptic-noise=0.3',],
+        ['-H79', '-V3', '--presynaptic-noise=0.1',],
+        ['-H119', '-V2', '--presynaptic-noise=0.3', '--reverse'],
+        ['-H199', '-e10', '--presynaptic-noise=1.0'],
+    ),
+    'nl' : (
+        ['-H99', '-V2', '--presynaptic-noise=0.3',],
+        ['-H79', '-V3', '--presynaptic-noise=0.1',],
+        ['-H119', '-V2', '--presynaptic-noise=0.3', '--reverse'],
+        ['-H199', '-e10', '--presynaptic-noise=1.0'],
+    ),
+}
 
 
 def write_answers_for_lang(lang, tasks, input_dir, output_dir):
-    # 1. make a model of the language.
-    # 2. Look for clusters in each task
+    for i, c in enumerate(config):
+        dest = os.path.join(output_dir, '%s-%s.pickle' % (lang, i))
+        cmd = ['./learn-corpus', lang,
+               '-C80', '-o' output_dir,
+               '-i' input_dir,
+               '--save', dest,
+               '--batch-size', '40',
+               '-l0.125',
+               '--ignore-start', '10'] + config
+        print "training:  %s" % ' '.join(cmd)
+        subprocess.check_call(cmd)
 
-    # model needs to find text identity -- the same text in more than
-    # one task should only be modelled once.
-    #
-    # (text identity can be decided *after* preprocessing)
 
-    print "looking at %d clusters in lang %s" % (len(tasks), lang)
-
-    cmd = ['./pan-cluster-lang', lang,
-           '-i', input_dir, '-o', output_dir
-           ]
 
 
 def main():

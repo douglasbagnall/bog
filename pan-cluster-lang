@@ -172,11 +172,6 @@ def calc_ventropy_change(ventropies, prev_ventropies):
     return (ve_mean, ve_stddev, ve_diff_mean, ve_diff_stddev)
 
 
-def write_results(net, fn, texts, ignore_start):
-    results = get_jensen_shannon_distances(net, texts, ignore_start)
-    write_answers(fn, sigmoid_results(results))
-
-
 def train(net, texts, leakage, epochs, leakage_decay,
           learn_rate_decay, ignore_start, trace, validation_text):
 
@@ -267,7 +262,7 @@ def main():
                         help='write results here')
     parser.add_argument('--corpus', default=language.TRAINING_CORPUS,
                         help=("read text from this alternative corpus"))
-    parser.add_argument('-n', '--basename',
+    parser.add_argument('-n', '--basename', default='untitled',
                         help="base filenames upon this")
     parser.add_argument('-v', '--verbose', action='store_true',
                         help="print more to stderr")
@@ -389,6 +384,7 @@ def main():
         transitive_affinities = p_to_affinities(p_affinities)
         clusters = affinities_to_clusters(transitive_affinities)
 
-    write_results(args.output_dir, lang, transitive_affinities, clusters)
+    write_results(args.output_dir, args.lang, args.basename,
+                  transitive_affinities, clusters)
 
 main()
