@@ -1,5 +1,7 @@
 import json
 import os
+import errno
+import numpy as np
 
 def read_info_json(d):
     """An example:
@@ -29,7 +31,7 @@ def read_lang_info(d, lang):
     return dirs
 
 
-def makepath(fragments):
+def makepath(*fragments):
     fn = os.path.join(*fragments)
     d = os.path.dirname(fn)
     try:
@@ -40,29 +42,60 @@ def makepath(fragments):
     return fn
 
 
-def write_clusters_json(clusters, *dirpath):
+def write_clusters_json(clusters, docnames, output_dir, problem,
+                        tag=None):
     json_clusters = []
     for cluster in clusters:
-        json_clusters.append([{'document': x} for x in cluster])
+        json_clusters.append([{'document': docnames[x]} for x in cluster])
 
-    fn = makepath(dirpath + ("clustering.json",))
-    f = open(fn, 'w')
-    json.dump(f, json_clusters, indent=4)
+    fn = "clustering.json"
+    if tag:
+        fn = '%s-%s' % (tag, fn)
+    ffn = makepath(output_dir, problem, fn)
+    f = open(ffn, 'w')
+    json.dump(json_clusters, f, indent=4)
     f.close()
 
 
-def write_attractions_json(attractions, *dirpath):
+def write_attractions_json(attractions, docnames, output_dir, problem,
+                           tag=None):
+    low = np.amin(attractions)
+    high = np.amax(attractions)
+    scale = 0.999999 / (high - low)
+    scores = (attractions - low) * scale
     json_pairs = []
-    for a, b, p in attractions:
-        json_pairs.append({'document1': a,
-                           'document2': b,
-                           'score': p})
-    fn = makepath(dirpath + ("ranking.json",))
-    f = open(fn, 'w')
-    json.dump(f, json_pairs, indent=4)
+
+    for x in range(attractions.shape[0]):
+        for y in range(x + 1, scores.shape[0]):
+            json_pairs.append({'document1': docnames[x],
+                               'document2': docnames[y],
+                               'score': scores[x, y]})
+    fn = "ranking.json"
+    if tag:
+        fn = '%s-%s' % (tag, fn)
+    ffn = makepath(output_dir, problem, fn)
+    f = open(ffn, 'w')
+    json.dump(json_pairs, f, indent=4)
     f.close()
 
 
-def write_results(d, lang, title, affinities, clusters):
-    write_clusters_json(clusters, d, title, lang)
-    write_attractions_json(affinities, d, title, lang)
+def write_results(docnames, problem, affinities,
+                  clusters, d, tag=None):
+    print len(clusters), clusters
+    write_clusters_json(clusters, docnames, d, problem, tag=tag)
+    write_attractions_json(affinities, docnames, d, problem, tag=tag)
+
+
+def save_opinions(affinities, dest):
+    import pickle
+    f = open(dest, 'w')
+    pickle.dump(affinities, f)
+    f.close()
+
+
+def load_opinions(src):
+    import pickle
+    f = open(src)
+    affinities = pickle.load(f)
+    f.close()
+    return affinities

@@ -10,13 +10,28 @@ import charmodel
 import random
 import json
 import numpy as np
+import errno
 
 import language
 
-from meta import write_results
+from meta import write_results, makepath, save_opinions, load_opinions
 
-OUTPUT_DIR = 'results'
-INPUT_DIR = language.TRAINING_CORPUS
+
+def write_normalised_png(a, fn):
+    #print a
+    print fn
+    from PIL import Image
+    hi = np.amax(a)
+    lo = np.amin(a)
+    scale = 255.9 / (hi - lo)
+    b = (a - lo) * scale
+    c = np.array(b, dtype='uint8')
+    print "low %f high %f scale %f" % (lo, hi,  scale)
+    print "b min %f b max %f" % (np.amin(b), np.amax(b))
+    print "c min %d b max %d" % (np.amin(c), np.amax(c))
+    im = Image.fromarray(c)
+    makepath(fn)
+    im.save(fn)
 
 
 def opine(net, texts, problems, ignore_start, symmetric=False,
@@ -26,10 +41,10 @@ def opine(net, texts, problems, ignore_start, symmetric=False,
     # each problem. Because texts are often in more than one problem,
     # we keep a cache (this is sort-of expensive).
 
-    affinities = []
+    affinities = {}
     entropies_cache = {}
 
-    for pid, records in problems:
+    for pid, records in problems.items():
         entropy_sum = 0.0
         entropy_matrix = []
         text_ids = [x[2] for x in records]
@@ -60,11 +75,11 @@ def opine(net, texts, problems, ignore_start, symmetric=False,
                 if len(control_entropies) > 1:
                     control_entropy /= len(control_entropies)
 
-                print ("found %d local entropies, mean is %3f" %
-                       (len(local_entropies),
-                        sum(local_entropies) / len(local_entropies)))
-                print ("found %d control entropies, mean is %3f" %
-                       (len(control_entropies), control_entropy))
+                local_mean = sum(local_entropies) / len(local_entropies)
+                print ("found %d local entropies, µ %.3f, %d control µ %.3f "
+                       "diff %.3f" % (len(local_entropies), local_mean,
+                                      len(control_entropies), control_entropy,
+                                      control_entropy - local_mean))
             else:
                 control_entropy = 0.0
 
@@ -75,7 +90,8 @@ def opine(net, texts, problems, ignore_start, symmetric=False,
         if symmetric:
             score_matrix += score_matrix.T
 
-        affinities.append(score_matrix)
+        affinities[pid] = score_matrix
+
     return affinities
 
 
@@ -83,27 +99,12 @@ def entropy_to_p(raw_affinities):
     print raw_affinities
     x = np.maximum(raw_affinities, -40.0)
     x = np.minimum(x, 40.0)
-    affinities = 1.0 / (1.0 + np.exp(x))
-    #affinities = np.exp(-x)
-    return affinities
+    sigmoid_affinities = 1.0 / (1.0 + np.exp(-x))
+    open_affinities = np.exp(-x)
+    return sigmoid_affinities, open_affinities
 
 
-def links_to_clusters(links):
-    symlinks = links | links.T
-    n = links.shape[0]
-    cluster_map = range(n)
-    for i in range(n):
-        c = cluster_map[i]
-        for j in range(c + 1, n):
-            if symlinks[i, j]:
-                cluster_map[j] = c
-    clusters = {}
-    for i, c in enumerate(cluster_map):
-        clusters.setdefault(c, []).append(i)
-    return clusters
-
-
-def p_to_affinities(input, samples=100):
+def p_to_affinities(input, samples=500):
     """Treat the input array as a (somehow) scaled probability that two
     nodes are linked. The probability that they're in the same cluster
     has a transitive element.
@@ -122,61 +123,102 @@ def p_to_affinities(input, samples=100):
         links = r < p
         clusters = links_to_clusters(links)
 
-        print "scale is %g; min %g max %g" % (scale, min_scale, max_scale)
-        print "found %d clusters" % len(clusters)
+        #print "found %2d clusters at %g" % (len(clusters), scale)
+
         if len(clusters) == 1:
             # everything is connected, so the scale is too high
             # make sure we don't go higher.
-            max_scale = scale
+            max_scale = (scale + max_scale) * 0.5
+            print "adjusting max to %.3g after %.3g" %  (max_scale, scale)
             continue
 
         if len(clusters) == input.shape[0]:
             #nothing is connected
-            min_scale = scale
+            min_scale = (scale + min_scale) * 0.5
+            print "adjusting MIN to %.3g after %.3g" %  (min_scale, scale)
             continue
 
         for v in clusters.values():
+            #print v
             for x in v:
                 for y in v:
-                    totals[x, y] += 1.0
+                    if y != x:
+                        totals[x, y] += 1.0
 
         runs -= 1
-
+    totals *= 1.0 / (np.amax(totals) + 1e-10)
     return totals
+
+
+def links_to_clusters(links):
+    symlinks = links | links.T
+    n = links.shape[0]
+    cluster_map = range(n)
+    for i in range(n):
+        c = cluster_map[i]
+        for j in range(n):
+            if i != j and symlinks[i, j]:
+                cluster_map[j] = c
+    clusters = {}
+    for i, c in enumerate(cluster_map):
+        clusters.setdefault(c, []).append(i)
+    return clusters
 
 
 def affinities_to_clusters(affinities, threshold=None, n_min=None):
     if threshold is None and n_min is None:
         # lets try to find a threshold that will give us a middle
         # number of clusters.
-        top = np.max(affinities)
-        bottom = np.min(affinities)
-        threshold = (top + bottom) * 0.5
+        top = np.amax(affinities)
+        bottom = np.amin(affinities)
+        #threshold = (top + bottom) * 0.5
+        threshold = np.percentile(affinities, 90.0)
+        print ("trying threshold of %.3g (min %.3g, max %.3g)" %
+               (threshold, bottom, top))
 
     if threshold is None:
         for threshold in sorted(set(affinities)):
             links = affinities > threshold
-            clusters = links_to_clusters(affinities, threshold)
+            clusters = links_to_clusters(links)
             if len(clusters) > n_min:
                 break
     else:
         links = affinities > threshold
         clusters = links_to_clusters(links)
 
-    return clusters
+    return clusters.values()
 
 
-def write_opinions(net, texts, problems, ignore_start,
-                   output_dir, lang, basename):
-    raw_affinities = opine(net, texts, problems.items(), args.ignore_start)
-    for problem_affinities in raw_affinities:
-        p_affinities = entropy_to_p(problem_affinities)
-        transitive_affinities = p_to_affinities(p_affinities)
+def write_opinions(all_affinities, problems, output_dir):
+    for pid, records in problems.items():
+        raw_affinities = all_affinities[pid]
+        sigmoid_affinities, open_affinities = entropy_to_p(raw_affinities)
+        transitive_affinities = p_to_affinities(open_affinities)
+        transitive_sigmoid_affinities = p_to_affinities(sigmoid_affinities)
 
         clusters = affinities_to_clusters(transitive_affinities)
+        sigmoid_clusters = affinities_to_clusters(sigmoid_affinities)
+        raw_clusters = affinities_to_clusters(raw_affinities)
 
-    write_results(args.output_dir, args.lang, args.basename,
-                  transitive_affinities, clusters)
+        symmetric_raw = raw_affinities + raw_affinities.T
+        fn = os.path.join(output_dir, '%s-%%s.png' % pid)
+        print fn
+        write_normalised_png(raw_affinities, fn % 'raw_affinities')
+        write_normalised_png(symmetric_raw, fn % 'symmetric_raw')
+        write_normalised_png(sigmoid_affinities, fn % 'sigmoid_affinities')
+        write_normalised_png(open_affinities, fn % 'open_affinities')
+        write_normalised_png(transitive_sigmoid_affinities,
+                             fn % 'transitive_sigmoid_affinities')
+        write_normalised_png(transitive_affinities,
+                             fn % 'transitive_affinities')
+
+        docnames = [x[0] for x in records]
+        write_results(docnames, pid, transitive_affinities, clusters,
+                      output_dir)
+        #write_results(docnames, pid, sigmoid_affinities, sigmoid_clusters,
+        #              output_dir, tag='sigmoid')
+        #write_results(docnames, pid, raw_affinities, raw_clusters,
+        #              output_dir, tag='raw')
 
 
 def calc_ventropy_change(ventropies, prev_ventropies):
@@ -274,18 +316,22 @@ def get_net_and_corpus(srcdir, controldir, control_n, lang,
     net = charmodel.Net(alphabet, textnames, metadata=metadata, **net_kwargs)
     return net, remapped, problems, v_text
 
+
 def main():
-    global OUTPUT_DIR, INPUT_DIR
     parser = argparse.ArgumentParser()
     rnn_args = parser.add_argument_group('RNN arguments')
 
     parser.add_argument('lang', help="the language to look at")
-    parser.add_argument('-i', '--input-dir', default=INPUT_DIR,
+    parser.add_argument('-i', '--input-dir', default=language.TRAINING_CORPUS,
                         help='find problems here')
-    parser.add_argument('-o', '--output-dir', default=OUTPUT_DIR,
+    parser.add_argument('-o', '--output-dir', default='results',
                         help='write results here')
-    parser.add_argument('--corpus', default=language.TRAINING_CORPUS,
-                        help=("read text from this alternative corpus"))
+
+    parser.add_argument('--load',
+                        help='load raw opinions from here')
+    parser.add_argument('--save',
+                        help='save raw opinions here')
+
     parser.add_argument('-n', '--basename', default='untitled',
                         help="base filenames upon this")
     parser.add_argument('-v', '--verbose', action='store_true',
@@ -364,6 +410,15 @@ def main():
     if args.rng_seed != -1:
         random.seed(args.rng_seed)
 
+    try:
+        os.makedirs(args.output_dir)
+        print "made directory %r" % args.output_dir
+    except OSError, e:
+        if e.errno == errno.EEXIST:
+            print "directory %r already exists" % args.output_dir
+        else:
+            raise
+
     net_kwargs = {}
     for k, v in vars(args).items():
         if k in ("bptt_depth",
@@ -393,14 +448,22 @@ def main():
                                                       args.validation_corpus,
                                                       net_kwargs)
 
-    print problems.keys()
+    if args.load is None:
+        train(net, texts, args.leakage, args.sub_epochs,
+              args.leakage_decay, args.learn_rate_decay,
+              args.ignore_start,
+              v_text)
 
-    train(net, texts, args.leakage, args.sub_epochs,
-          args.leakage_decay, args.learn_rate_decay, args.ignore_start,
-          v_text)
+    if args.save is not None:
+        affinities = opine(net, texts, problems, args.ignore_start)
+        save_opinions(affinities, args.save)
+        return
 
-    write_opinions(net, texts, problems, args.ignore_start,
-                   args.output_dir, args.lang, args.basename)
+    if args.load is not None:
+        affinities = load_opinions(args.load)
+    else:
+        affinities = opine(net, texts, problems, args.ignore_start)
 
+    write_opinions(affinities, problems, args.output_dir)
 
 main()
