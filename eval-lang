@@ -1,0 +1,157 @@
+#!/usr/bin/python
+import argparse
+import meta
+import json
+import os
+
+GROUND_TRUTH_DIR = 'corpus/pan16-author-clustering-training-dataset-2016-02-17/truth/'
+GROUND_TRUTH_DIR = os.path.join(os.path.dirname(__file__), GROUND_TRUTH_DIR)
+
+def load_clustering_json(fn):
+    f = open(fn)
+    raw_clusters = json.load(f)
+    f.close()
+    documents = set()
+    clusters = []
+    for cluster in raw_clusters:
+        cluster = frozenset(x['document'] for x in cluster)
+        clusters.append(cluster)
+        documents.update(cluster)
+
+    return documents, clusters
+
+
+def load_ranking_json(fn):
+    f = open(fn)
+    raw_pairs = json.load(f)
+    f.close()
+    links = []
+    for pair in raw_pairs:
+        d1 = pair['document1']
+        d2 = pair['document2']
+        score = pair['score']
+        if d1 > d2:
+            d2, d1 = d1, d2
+        links.append((score, (d1, d2)))
+
+    links.sort(reverse=True)
+    return links
+
+
+def load_ground_truths(srcdir):
+    truths = {}
+    for d, dirnames, filenames in os.walk(srcdir):
+        pid = os.path.basename(d)
+        pid_truths = truths.setdefault(pid, {})
+        for fn in filenames:
+            ffn = os.path.join(d, fn)
+            if fn == 'ranking.json':
+                pid_truths['ranking'] = load_ranking_json(ffn)
+
+            elif fn == 'clustering.json':
+                docs, clustering = load_clustering_json(ffn)
+                pid_truths['clustering'] = clustering
+                pid_truths['documents'] = docs
+
+    return truths
+
+
+def avg_precision(d, n, links, truth):
+    precision = 0.0
+    r = 0.0
+    count = 0.0
+    correct = 0.0
+    for score, pair in links:
+        if not d in pair:
+            continue
+        count += 1.0
+        if pair in truth:
+            correct += 1.0
+        precision += correct / count
+        if correct == len(truth):
+            break
+
+    return precision / count
+
+
+def calc_map(links, truth, documents):
+    true_links = set(x[1] for x in truth)
+    score = 0.0
+    for d in documents:
+        score += avg_precision(d, len(documents), links, true_links)
+
+    return score / len(documents)
+
+
+def bcubed(clusters, truth):
+    truth_map = {}
+    for t in truth:
+        for d in t:
+            truth_map[d] = t
+
+    print truth
+    print clusters
+            
+    score = 0.0
+    n = 0.0
+    for cluster in clusters:
+        n += len(cluster)
+        for d in cluster:
+            tcluster = truth_map[d]
+            correct = len(cluster & tcluster)
+            denom = len(cluster)
+            score += float(correct) / denom
+
+    return score / n
+
+def calc_fbcubed(clusters, truth):
+    precision = bcubed(clusters, truth)
+    recall = bcubed(truth, clusters)
+    rp = 1.0 / precision
+    rr = 1.0 / recall
+    return 2.0 / (rp + rr)
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--input-dir',
+                        help='find problems here')
+    parser.add_argument('-g', '--ground-truth-dir',
+                        default=GROUND_TRUTH_DIR,
+                        help="use this alternative control corpus")
+
+    args = parser.parse_args()
+
+    truthes = load_ground_truths(args.ground_truth_dir)
+
+    fbcubed_total = 0.0
+    map_total = 0.0
+    n = 0.0
+    
+    for d, dirnames, filenames in os.walk(args.input_dir):
+        pid = os.path.basename(d)
+        t = truthes.get(pid)
+        if t is None:
+            #print "skipping directory %s" % pid
+            continue
+        for fn in filenames:
+            ffn = os.path.join(d, fn)
+            if fn == 'ranking.json':
+                ranking = load_ranking_json(ffn)
+                score = calc_map(ranking, t['ranking'], t['documents'])
+                print "%s MAP %s" % (pid, score)
+                n += 1.0
+                map_total += score
+                
+            elif fn == 'clustering.json':
+                docs, clustering = load_clustering_json(ffn)
+                assert(docs == t['documents'])
+                score = calc_fbcubed(clustering, t['clustering'])
+                print "%s F(BCubed) %s" % (pid, score)
+                fbcubed_total += score
+
+    print "FBCubed mean %s" % (fbcubed_total / n)
+    print "MAP mean     %s" % (map_total / n)
+
+
+main()
