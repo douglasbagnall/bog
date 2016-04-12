@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-
+import subprocess
+import time
 import os
 import sys
 HERE = os.path.dirname(__file__)
@@ -317,6 +318,19 @@ def get_net_and_corpus(srcdir, controldir, control_n, lang,
     return net, remapped, problems, v_text
 
 
+def make_directory_name(basename):
+    # make up a good name
+    here = os.path.dirname(__file__)
+    git_hash = subprocess.check_output(['git', '-C', here,
+                                        'rev-parse',
+                                        '--short', 'HEAD']).strip()
+    now = time.strftime('%Y-%m-%d+%H-%M-%S')
+    mod = '-'
+    if subprocess.call(['git', 'diff-files', '--quiet']):
+        mod = '+'
+    return 'results/%s-%s%s-%s' % (basename, git_hash, mod, now)
+
+
 def main():
     parser = argparse.ArgumentParser()
     rnn_args = parser.add_argument_group('RNN arguments')
@@ -324,7 +338,7 @@ def main():
     parser.add_argument('lang', help="the language to look at")
     parser.add_argument('-i', '--input-dir', default=language.TRAINING_CORPUS,
                         help='find problems here')
-    parser.add_argument('-o', '--output-dir', default='results',
+    parser.add_argument('-o', '--output-dir',
                         help='write results here')
 
     parser.add_argument('--load',
@@ -332,7 +346,7 @@ def main():
     parser.add_argument('--save',
                         help='save raw opinions here')
 
-    parser.add_argument('-n', '--basename', default='untitled',
+    parser.add_argument('-n', '--basename', default='pan',
                         help="base filenames upon this")
     parser.add_argument('-v', '--verbose', action='store_true',
                         help="print more to stderr")
@@ -410,12 +424,17 @@ def main():
     if args.rng_seed != -1:
         random.seed(args.rng_seed)
 
+    if args.output_dir is None:
+        dir = make_directory_name(args.basename)
+        args.output_dir = dir
+        args.save = os.path.join(dir, 'affinities.pickle')
+
     try:
         os.makedirs(args.output_dir)
-        print "made directory %r" % args.output_dir
+        print "made output directory %r" % args.output_dir
     except OSError, e:
         if e.errno == errno.EEXIST:
-            print "directory %r already exists" % args.output_dir
+            print "output directory %r already exists" % args.output_dir
         else:
             raise
 
@@ -453,16 +472,12 @@ def main():
               args.leakage_decay, args.learn_rate_decay,
               args.ignore_start,
               v_text)
+        affinities = opine(net, texts, problems, args.ignore_start)
+    else:
+        affinities = load_opinions(args.load)
 
     if args.save is not None:
-        affinities = opine(net, texts, problems, args.ignore_start)
         save_opinions(affinities, args.save)
-        return
-
-    if args.load is not None:
-        affinities = load_opinions(args.load)
-    else:
-        affinities = opine(net, texts, problems, args.ignore_start)
 
     write_opinions(affinities, problems, args.output_dir)
 

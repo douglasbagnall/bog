@@ -88,6 +88,7 @@ def write_results(docnames, problem, affinities,
 
 def save_opinions(affinities, dest):
     import pickle
+    makepath(dest)
     f = open(dest, 'w')
     pickle.dump(affinities, f)
     f.close()
@@ -95,6 +96,7 @@ def save_opinions(affinities, dest):
 
 def load_opinions(src):
     import pickle
+    makepath(src)
     f = open(src)
     affinities = pickle.load(f)
     f.close()
