@@ -348,6 +348,8 @@ def main():
                         help='load raw opinions from here')
     parser.add_argument('--save',
                         help='save raw opinions here')
+    parser.add_argument('--auto-save', action='store_true',
+                        help='save raw opinions in results dir')
 
     parser.add_argument('-n', '--basename', default='pan',
                         help="base filenames upon this")
@@ -430,7 +432,9 @@ def main():
     if args.output_dir is None:
         dir = make_directory_name(args.basename)
         args.output_dir = dir
-        args.save = os.path.join(dir, 'affinities.pickle')
+
+    if not args.load and args.auto_save:
+        args.save = os.path.join(args.output_dir, 'affinities.pickle')
 
     try:
         os.makedirs(args.output_dir)
