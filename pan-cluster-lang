@@ -377,10 +377,10 @@ def main():
                           help="Add this much presynaptic noise")
     rnn_args.add_argument('-l', '--learn-rate', type=float, default=1e-1,
                           help=charmodel.Net.learn_rate.__doc__)
-    rnn_args.add_argument('-L', '--leakage', type=float, default=-1.0,
+    rnn_args.add_argument('-L', '--leakage', type=float, default=-2.0,
                           help=("how much training leaks into other classes "
                                 "[0-1] or negative"))
-    rnn_args.add_argument('--leakage-decay', type=float, default=1.0,
+    rnn_args.add_argument('--leakage-decay', type=float, default=0.9,
                           help="change in leakage per sub-epoch")
     rnn_args.add_argument('--learn-rate-decay', type=float, default=1,
                           help="change in learn-rate per sub-epoch")
