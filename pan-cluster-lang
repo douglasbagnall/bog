@@ -274,13 +274,15 @@ def get_net_and_corpus(srcdir, controldir, control_n, lang,
     if control_n and controldir:
         control_texts, _ = language.load_control_texts(controldir, lang)
 
-        if len(texts) > control_n:
+        if len(control_texts) > control_n:
             # sort, to avoid hashing indeterminacy
-            c_items = sorted(texts.items())
+            c_items = sorted(control_texts.items())
             random.shuffle(c_items)
             control_texts = dict(c_items[:control_n])
 
         texts.update(control_texts)
+
+        print "using %d control texts; wanted %d" % (len(control_texts), control_n)
 
     # remap into net enumeration encoding
     alphabet = charmodel.Alphabet(''.join(texts.values()), ignore_case=False,
@@ -359,7 +361,7 @@ def main():
     parser.add_argument('--validation-corpus',
                         default=language.VALIDATION_CORPUS,
                         help="use this text for validation")
-    parser.add_argument('-C', '--control-n', default=0, #XXX up to n altogether?
+    parser.add_argument('-C', '--control-n', default=0, type=int, #XXX up to n altogether?
                         help="how many controls to add")
     parser.add_argument('--reverse', action='store_true',
                         help="process all texts in reverse")
