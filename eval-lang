@@ -83,32 +83,31 @@ def calc_map(links, truth, documents):
     return score / len(documents)
 
 
-def bcubed(clusters, truth):
+def calc_fbcubed(clusters, truth):
     truth_map = {}
     for t in truth:
         for d in t:
             truth_map[d] = t
 
-    print truth
-    print clusters
-            
-    score = 0.0
+    r = 0.0
+    p = 0.0
     n = 0.0
+
     for cluster in clusters:
         n += len(cluster)
         for d in cluster:
             tcluster = truth_map[d]
             correct = len(cluster & tcluster)
-            denom = len(cluster)
-            score += float(correct) / denom
+            p += float(correct) / len(cluster)
+            r += float(correct) / len(tcluster)
+            print "p %2d/%-2d" % (correct, len(cluster)),
+            print "r %2d/%-2d" % (correct, len(tcluster))
 
-    return score / n
 
-def calc_fbcubed(clusters, truth):
-    precision = bcubed(clusters, truth)
-    recall = bcubed(truth, clusters)
-    rp = 1.0 / precision
-    rr = 1.0 / recall
+    print "recall    %s" % (r / n)
+    print "precision %s" % (p / n)
+    rp = n / p
+    rr = n / r
     return 2.0 / (rp + rr)
 
 
@@ -127,7 +126,7 @@ def main():
     fbcubed_total = 0.0
     map_total = 0.0
     n = 0.0
-    
+
     for d, dirnames, filenames in os.walk(args.input_dir):
         pid = os.path.basename(d)
         t = truthes.get(pid)
@@ -142,7 +141,7 @@ def main():
                 print "%s MAP %s" % (pid, score)
                 n += 1.0
                 map_total += score
-                
+
             elif fn == 'clustering.json':
                 docs, clustering = load_clustering_json(ffn)
                 assert(docs == t['documents'])
