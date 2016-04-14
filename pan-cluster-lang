@@ -102,7 +102,7 @@ def entropy_to_p(raw_affinities):
     print raw_affinities
     x = np.maximum(raw_affinities, -40.0)
     x = np.minimum(x, 40.0)
-    x *= 3
+    x *= 10
     sigmoid_affinities = 1.0 / (1.0 + np.exp(-x))
     open_affinities = np.exp(-x)
     return sigmoid_affinities, open_affinities
@@ -176,7 +176,7 @@ def affinities_to_clusters(affinities, threshold=None, n_min=None):
         top = np.amax(affinities)
         bottom = np.amin(affinities)
         #threshold = (top + bottom) * 0.5
-        threshold = np.percentile(affinities, 95)
+        threshold = np.percentile(affinities, 97)
         print ("trying threshold of %.3g (min %.3g, max %.3g)" %
                (threshold, bottom, top))
 
