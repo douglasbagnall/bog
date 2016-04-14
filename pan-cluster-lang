@@ -43,6 +43,7 @@ def opine(net, texts, problems, ignore_start, symmetric=False,
     # we keep a cache (this is sort-of expensive).
 
     affinities = {}
+    names = {}
     entropies_cache = {}
 
     for pid, records in problems.items():
@@ -92,8 +93,9 @@ def opine(net, texts, problems, ignore_start, symmetric=False,
             score_matrix += score_matrix.T
 
         affinities[pid] = score_matrix
+        names[pid] = [x[0] for x in records]
 
-    return affinities
+    return affinities, names
 
 
 def entropy_to_p(raw_affinities):
@@ -479,12 +481,12 @@ def main():
               args.leakage_decay, args.learn_rate_decay,
               args.ignore_start,
               v_text)
-        affinities = opine(net, texts, problems, args.ignore_start)
+        affinities, names = opine(net, texts, problems, args.ignore_start)
     else:
         affinities = load_opinions(args.load)
 
     if args.save is not None:
-        save_opinions(affinities, args.save)
+        save_opinions(affinities, names, args.save)
 
     write_opinions(affinities, problems, args.output_dir)
 

@@ -2,6 +2,7 @@ import json
 import os
 import errno
 import numpy as np
+import pickle
 
 def read_info_json(d):
     """An example:
@@ -86,18 +87,19 @@ def write_results(docnames, problem, affinities,
     write_attractions_json(affinities, docnames, d, problem, tag=tag)
 
 
-def save_opinions(affinities, dest):
-    import pickle
+def save_opinions(affinities, names, dest):
     makepath(dest)
     f = open(dest, 'w')
-    pickle.dump(affinities, f)
+    pickle.dump((affinities, names), f)
     f.close()
 
 
 def load_opinions(src):
-    import pickle
     makepath(src)
     f = open(src)
-    affinities = pickle.load(f)
+    payload = pickle.load(f)
     f.close()
-    return affinities
+    if isinstance(payload, dict):
+        # once upon a time, names weren't included.
+        return (payload, {})
+    return payload

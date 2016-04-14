@@ -59,7 +59,7 @@ def load_problem_texts(srcdir, lang, raw=False, ext='.txt'):
     """load the texts, remapping and deduplicating along the way."""
     texts = {}
     records = []
-    for fn in os.listdir(srcdir):
+    for fn in sorted(os.listdir(srcdir)):
         if fn.endswith(ext):
             ffn = os.path.join(srcdir, fn)
             text, tid = get_text_and_id(ffn, lang, raw)
