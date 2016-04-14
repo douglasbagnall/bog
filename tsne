@@ -1,0 +1,153 @@
+#!/usr/bin/python
+import gzip, cPickle
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+import sys, os
+import argparse
+import csv
+import json
+
+from fasttsne import fast_tsne
+
+mpl.rcParams['savefig.directory'] = 'results/images'
+
+def stddev(x, order, axis):
+    return np.std(x, axis=axis)
+
+def norm_norm_norm(entropies):
+    if True:
+        entropies -= np.mean(entropies, axis=0)
+        entropies -= np.mean(entropies, axis=1)[:, None]
+        #entropies -= np.mean(entropies)
+    else:
+        entropies -= np.median(entropies, axis=1)[:, None]
+        entropies -= np.median(entropies, axis=0)
+        #entropies -= np.median(entropies, axis=1)[:, None]
+
+    for f, order, axis in [
+            #(stddev, 1, 0),
+            #(stddev, 1, 1),
+            #(np.linalg.norm, 1, 0),
+            #(np.linalg.norm, 1, 1),
+        ]:
+        norm = f(entropies, order, axis)
+        print "f %s order %s axis %s, norm is %s" % (f, order, axis, norm.shape)
+        if np.all(norm):
+            entropies /= (norm[:, None] if axis == 1 else norm)
+        else:
+            print "SKIPPING due to zeros"
+
+    return entropies
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--normalise', action="store_true",
+                        help='normalise each vector to a unit hypersphere')
+
+    parser.add_argument('-N', '--no-norm-norm-norm', action="store_true",
+                        help='less normalisation')
+
+    parser.add_argument('-p', '--perplexity', type=float, default=10.0,
+                        help='perplexity for t-SNE')
+
+    parser.add_argument('-i', '--input',
+                        help='input filename (pickle)')
+
+    parser.add_argument('-g', '--ground-truth-dir',
+                        help='cluster ground truth (json)')
+
+    parser.add_argument('-o', '--csv-output-dir',
+                        help='write tsne data here')
+
+    parser.add_argument('--image-output-dir',
+                        help="Save images here")
+
+    parser.add_argument('--no-window', action='store_true',
+                        help="don't show image in an X window")
+
+    parser.add_argument('--hide-axes', action='store_true',
+                        help="don't draw the bloody axes")
+
+    parser.add_argument('--no-figure', action='store_true',
+                        help="only export the coordinates, no graphics")
+
+    args = parser.parse_args()
+
+    f = open(args.input)
+    data = cPickle.load(f)
+    f.close()
+    try:
+        affinities, names = data
+    except:
+        affinities = data
+        names = None
+        print >> sys.stderr, "Point labels are unknown"
+
+    if args.ground_truth_dir and names is not None:
+        clusters = {}
+        for pid in affinities:
+            fn = os.path.join(args.ground_truth_dir, pid, 'clustering.json')
+            f = open(fn)
+            raw_truth = json.load(f)
+            f.close()
+            n = len(raw_truth)
+            clusters[pid] = {}
+            colours = [plt.cm.spectral(i)
+                       for i in np.linspace(0, 0.95, n)]
+            shapes = 'o^<>v8sphHD' * n
+            for shape, colour, cluster in zip(shapes, colours, raw_truth):
+                for d in cluster:
+                    for v in d.values():
+                        clusters[pid][v] = (shape, colour)
+
+    else:
+        clusters = None
+
+    for tag, data in affinities.items():
+        print tag
+
+        if not args.no_norm_norm_norm:
+            data = norm_norm_norm(data)
+
+        Y = fast_tsne(data, perplexity=args.perplexity, theta=0.5,
+                      normalise_mean=args.normalise)
+
+        if args.csv_output_dir:
+            fn = os.path.join(args.csv_output_dir, tag + '.csv')
+            np.savetxt(fn, Y, fmt='%.8e', delimiter=', ')
+
+        if not args.no_figure:
+            fig = plt.figure(figsize=(12, 10))
+            ax = fig.add_subplot(111)
+
+            if clusters is not None:
+                for p, k, c in zip(Y, clusters[tag], clusters[tag].values()):
+                    x, y = p
+                    shape, colour = c
+                    ax.plot(x, y, shape, color=colour)
+                    ax.annotate(k, xy=p, xytext=(-4,-4),
+                                textcoords='offset points',
+                                size=9, zorder=-100,
+                                ha='right', va='bottom',
+                                color='#aaaaaa')
+            else:
+                ax.plot(Y[:, 0], Y[:, 1], '.')
+
+            if args.hide_axes:
+                ax.spines['top'].set_visible(False)
+                ax.spines['right'].set_visible(False)
+                ax.spines['bottom'].set_visible(False)
+                ax.spines['left'].set_visible(False)
+                ax.set_xticks([])
+                ax.set_yticks([])
+
+            if args.image_output_dir:
+                fn = os.path.join(args.image_output_dir, tag + '.png')
+                plt.savefig(fn, bbox_inches='tight', dpi=200)
+
+            if not args.no_window:
+                plt.show()
+
+main()
