@@ -96,7 +96,8 @@ def main():
             clusters[pid] = {}
             colours = [plt.cm.spectral(i)
                        for i in np.linspace(0, 0.95, n)]
-            shapes = 'o^<>v8sphHD' * n
+            #shapes = 'o^<>v8sphHD' * n
+            shapes = '^v8sphD' * n
             for shape, colour, cluster in zip(shapes, colours, raw_truth):
                 for d in cluster:
                     for v in d.values():
@@ -125,6 +126,7 @@ def main():
             if clusters is not None:
                 for p, k, c in zip(Y, clusters[tag], clusters[tag].values()):
                     x, y = p
+                    k = k[-8:-4]
                     shape, colour = c
                     ax.plot(x, y, shape, color=colour)
                     ax.annotate(k, xy=p, xytext=(-4,-4),
