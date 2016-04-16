@@ -146,8 +146,7 @@ def p_to_affinities(input, samples=10000):
             #print v
             for x in v:
                 for y in v:
-                    if y != x:
-                        totals[x, y] += 1.0
+                    totals[x, y] += 1.0
 
         runs -= 1
     totals *= 1.0 / (np.amax(totals) + 1e-10)
@@ -176,7 +175,7 @@ def affinities_to_clusters(affinities, threshold=None, n_min=None):
         top = np.amax(affinities)
         bottom = np.amin(affinities)
         #threshold = (top + bottom) * 0.5
-        threshold = np.percentile(affinities, 97)
+        threshold = np.percentile(affinities, 95)
         print ("trying threshold of %.3g (min %.3g, max %.3g)" %
                (threshold, bottom, top))
 
