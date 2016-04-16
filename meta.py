@@ -87,10 +87,10 @@ def write_results(docnames, problem, affinities,
     write_attractions_json(affinities, docnames, d, problem, tag=tag)
 
 
-def save_opinions(affinities, names, dest):
+def save_opinions(dest, affinities, names, control_means):
     makepath(dest)
     f = open(dest, 'w')
-    pickle.dump((affinities, names), f)
+    pickle.dump((affinities, names, control_means), f)
     f.close()
 
 
@@ -101,5 +101,11 @@ def load_opinions(src):
     f.close()
     if isinstance(payload, dict):
         # once upon a time, names weren't included.
-        return (payload, {})
+        return (payload, {},
+                {k:0 for k in payload})
+    elif len(payload) == 2:
+        affinities, names = payload
+        return (affinities, names,
+                {k:0 for k in affinities})
+
     return payload
