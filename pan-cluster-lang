@@ -99,10 +99,10 @@ def opine(net, texts, problems, ignore_start):
             control_means.append([control_entropy])
 
         affinities[pid] = np.array(entropy_matrix)
-        all_control_means.append[pid] = mp.array(control_means)
+        all_control_means[pid] = np.array(control_means)
         names[pid] = [x[0] for x in records]
 
-    return affinities, names, control_means
+    return affinities, names, all_control_means
 
 
 def entropy_to_p(raw_affinities):
@@ -203,7 +203,9 @@ def write_opinions(all_affinities, problems, control_means, output_dir):
     for pid, records in problems.items():
         raw_affinities = all_affinities[pid]
         norm_affinities = raw_affinities - control_means[pid]
-        sigmoid_affinities, open_affinities = entropy_to_p(norm_affinities)
+        diagonal = np.diagonal(norm_affinities)
+        norm2_affinities = norm_affinities - diagonal
+        sigmoid_affinities, open_affinities = entropy_to_p(norm2_affinities)
         transitive_affinities = p_to_affinities(open_affinities)
         transitive_sigmoid_affinities = p_to_affinities(sigmoid_affinities)
 
@@ -211,12 +213,14 @@ def write_opinions(all_affinities, problems, control_means, output_dir):
         sigmoid_clusters = affinities_to_clusters(sigmoid_affinities)
         raw_clusters = affinities_to_clusters(raw_affinities)
         norm_clusters = affinities_to_clusters(norm_affinities)
+        norm2_clusters = affinities_to_clusters(norm2_affinities)
 
-        symmetric_norm = norm_affinities + norm_affinities.T
+        symmetric_norm = norm2_affinities + norm2_affinities.T
         fn = os.path.join(output_dir, '%s-%%s.png' % pid)
         print fn
         write_normalised_png(raw_affinities, fn % 'raw_affinities')
         write_normalised_png(norm_affinities, fn % 'norm_affinities')
+        write_normalised_png(norm2_affinities, fn % 'norm2_affinities')
         write_normalised_png(symmetric_norm, fn % 'symmetric_norm')
         write_normalised_png(sigmoid_affinities, fn % 'sigmoid_affinities')
         write_normalised_png(open_affinities, fn % 'open_affinities')
