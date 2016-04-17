@@ -79,7 +79,7 @@ def main():
     data = cPickle.load(f)
     f.close()
     try:
-        affinities, names = data
+        affinities, names, control_means = data
     except:
         affinities = data
         names = None
@@ -108,7 +108,10 @@ def main():
 
     for tag, data in affinities.items():
         print tag
-
+        data -= control_means[tag]
+        data -= np.diagonal(data)
+        #data = data.T
+        data = np.concatenate((data, data.T), axis=1)
         if not args.no_norm_norm_norm:
             data = norm_norm_norm(data)
 
