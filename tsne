@@ -92,13 +92,18 @@ def main():
             f = open(fn)
             raw_truth = json.load(f)
             f.close()
-            n = len(raw_truth)
+            n = len([x for x in raw_truth if len(x) > 1])
             clusters[pid] = {}
             colours = [plt.cm.spectral(i)
                        for i in np.linspace(0, 0.95, n)]
             #shapes = 'o^<>v8sphHD' * n
-            shapes = '^v8sphD' * n
-            for shape, colour, cluster in zip(shapes, colours, raw_truth):
+            shapes = '^sphD' * n
+            styles = iter(zip(shapes, colours))
+            for cluster in raw_truth:
+                if len(cluster) == 1:
+                    shape, colour = ('o', '#bbbbbb')
+                else:
+                    shape, colour = styles.next()
                 for d in cluster:
                     for v in d.values():
                         clusters[pid][v] = (shape, colour)
