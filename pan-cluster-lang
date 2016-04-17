@@ -127,9 +127,10 @@ def best_connections(rel_entropies):
             for m2 in range(n):
                 if (row[m2] < best and
                     row[m2] + rel_entropies[m2, model] < best):
-                    print ("%2d->%-2d direct %.3f; via %2d %.3f" %
-                           (text, model, direct, m2, best))
                     best = row[m2] + rel_entropies[m2, model]
+                    print ("%2d->%-2d direct %.5f; via %2d %.5f, rev %.5f" %
+                           (text, model, direct, m2, best,
+                            rel_entropies[model, text]))
                     entropies[text, model] = best
     return entropies
 
