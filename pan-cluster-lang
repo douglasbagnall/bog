@@ -115,7 +115,26 @@ def entropy_to_p(raw_affinities):
     return sigmoid_affinities, open_affinities
 
 
-def p_to_affinities(input, samples=10000):
+def best_connections(rel_entropies):
+    entropies = np.copy(rel_entropies)
+    n = rel_entropies.shape[0]
+    print entropies.shape
+    for text in range(n):
+        for model in range(n):
+            row = rel_entropies[text]
+            direct = row[model]
+            best = direct
+            for m2 in range(n):
+                if (row[m2] < best and
+                    row[m2] + rel_entropies[m2, model] < best):
+                    print ("%2d->%-2d direct %.3f; via %2d %.3f" %
+                           (text, model, direct, m2, best))
+                    best = row[m2] + rel_entropies[m2, model]
+                    entropies[text, model] = best
+    return entropies
+
+
+def p_to_affinities(input, samples=100000):
     """Treat the input array as a (somehow) scaled probability that two
     nodes are linked. The probability that they're in the same cluster
     has a transitive element.
@@ -208,12 +227,14 @@ def write_opinions(all_affinities, problems, control_means, output_dir):
         sigmoid_affinities, open_affinities = entropy_to_p(norm2_affinities)
         transitive_affinities = p_to_affinities(open_affinities)
         transitive_sigmoid_affinities = p_to_affinities(sigmoid_affinities)
+        connected_affinities = best_connections(norm2_affinities)
 
         clusters = affinities_to_clusters(transitive_affinities)
         sigmoid_clusters = affinities_to_clusters(sigmoid_affinities)
         raw_clusters = affinities_to_clusters(raw_affinities)
         norm_clusters = affinities_to_clusters(norm_affinities)
         norm2_clusters = affinities_to_clusters(norm2_affinities)
+        connected_clusters = affinities_to_clusters(connected_affinities)
 
         symmetric_norm = norm2_affinities + norm2_affinities.T
         fn = os.path.join(output_dir, '%s-%%s.png' % pid)
@@ -224,13 +245,14 @@ def write_opinions(all_affinities, problems, control_means, output_dir):
         write_normalised_png(symmetric_norm, fn % 'symmetric_norm')
         write_normalised_png(sigmoid_affinities, fn % 'sigmoid_affinities')
         write_normalised_png(open_affinities, fn % 'open_affinities')
+        write_normalised_png(connected_affinities, fn % 'connected_affinities')
         write_normalised_png(transitive_sigmoid_affinities,
                              fn % 'transitive_sigmoid_affinities')
         write_normalised_png(transitive_affinities,
                              fn % 'transitive_affinities')
 
         docnames = [x[0] for x in records]
-        write_results(docnames, pid, transitive_affinities, clusters,
+        write_results(docnames, pid, sigmoid_affinities, connected_clusters,
                       output_dir)
         #write_results(docnames, pid, sigmoid_affinities, sigmoid_clusters,
         #              output_dir, tag='sigmoid')
