@@ -4,6 +4,7 @@ import meta
 import json
 import os
 from colour import foreground, background, C_NORMAL, GREY, CYAN, WHITE, MAGENTA
+import random
 
 
 GROUND_TRUTH_DIR = 'corpus/pan16-author-clustering-training-dataset-2016-02-17/truth/'
@@ -23,6 +24,18 @@ def load_clustering_json(fn):
     return documents, clusters
 
 
+def shuffle_clustering(docs, clusters):
+    keys = list(docs)
+    values = list(docs)
+    random.shuffle(values)
+    docmap = dict(zip(keys, values))
+    new_clusters = []
+    for cluster in clusters:
+        c = frozenset(docmap[x] for x in cluster)
+        new_clusters.append(c)
+    return new_clusters
+
+
 def load_ranking_json(fn):
     f = open(fn)
     raw_pairs = json.load(f)
@@ -38,6 +51,13 @@ def load_ranking_json(fn):
 
     links.sort(reverse=True)
     return links
+
+
+def shuffle_ranking(links):
+    scores, pairs = zip(*links)
+    pairs = list(pairs)
+    random.shuffle(pairs)
+    return zip(scores, pairs)
 
 
 def load_ground_truths(srcdir):
@@ -139,6 +159,8 @@ def main():
     parser.add_argument('-g', '--ground-truth-dir',
                         default=GROUND_TRUTH_DIR,
                         help="use this alternative control corpus")
+    parser.add_argument('--shuffle', action='store_true',
+                        help="randomly shuffle results (for baseline)")
 
     args = parser.parse_args()
 
@@ -158,6 +180,9 @@ def main():
             ffn = os.path.join(d, fn)
             if fn == 'ranking.json':
                 ranking = load_ranking_json(ffn)
+                if args.shuffle:
+                    ranking = shuffle_ranking(ranking)
+
                 score = calc_map(ranking, t['ranking'], t['documents'])
                 print "%s MAP %s" % (pid, score)
                 n += 1.0
@@ -165,6 +190,8 @@ def main():
 
             elif fn == 'clustering.json':
                 docs, clustering = load_clustering_json(ffn)
+                if args.shuffle:
+                    clustering = shuffle_clustering(docs, clustering)
                 assert(docs == t['documents'])
                 score = calc_fbcubed(clustering, t['clustering'])
                 print "%s F(BCubed) %s" % (pid, score)
