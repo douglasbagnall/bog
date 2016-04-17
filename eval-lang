@@ -3,6 +3,8 @@ import argparse
 import meta
 import json
 import os
+from colour import foreground, background, C_NORMAL, GREY, CYAN, WHITE, MAGENTA
+
 
 GROUND_TRUTH_DIR = 'corpus/pan16-author-clustering-training-dataset-2016-02-17/truth/'
 GROUND_TRUTH_DIR = os.path.join(os.path.dirname(__file__), GROUND_TRUTH_DIR)
@@ -93,19 +95,38 @@ def calc_fbcubed(clusters, truth):
     p = 0.0
     n = 0.0
 
+    colours = [foreground(x) for x in
+               [196, 202, 208, 214, 220, 226, 190, 118, 46]]
+    def colourise(x):
+        return colours[int(x * (len(colours) - 1))]
+    i = 0
     for cluster in clusters:
         n += len(cluster)
         for d in cluster:
             tcluster = truth_map[d]
             correct = len(cluster & tcluster)
-            p += float(correct) / len(cluster)
-            r += float(correct) / len(tcluster)
-            print "p %2d/%-2d" % (correct, len(cluster)),
-            print "r %2d/%-2d" % (correct, len(tcluster))
+            pp = float(correct) / len(cluster)
+            rr = float(correct) / len(tcluster)
+            p += pp
+            r += rr
+            pc = colourise(pp)
+            rc = colourise(rr)
+            if correct > 1:
+                label_colour = MAGENTA
+            else:
+                label_colour = WHITE
 
-
-    print "recall    %s" % (r / n)
-    print "precision %s" % (p / n)
+            print "%sp%s%2d/%-2d%s" % (label_colour, pc, correct, len(cluster),
+                                       C_NORMAL),
+            print "%sr%s%2d/%-2d%s|%s" % (label_colour, rc, correct,
+                                          len(tcluster), GREY, C_NORMAL),
+            i += 1
+            if (i % 5) == 0:
+                print
+    if (i % 5) != 0:
+        print
+    print "recall    %s%s%s" % (colourise(r / n), r / n, C_NORMAL)
+    print "precision %s%s%s" % (colourise(p / n), p / n, C_NORMAL)
     rp = n / p
     rr = n / r
     return 2.0 / (rp + rr)
@@ -121,7 +142,7 @@ def main():
 
     args = parser.parse_args()
 
-    truthes = load_ground_truths(args.ground_truth_dir)
+    truths = load_ground_truths(args.ground_truth_dir)
 
     fbcubed_total = 0.0
     map_total = 0.0
@@ -129,7 +150,7 @@ def main():
 
     for d, dirnames, filenames in os.walk(args.input_dir):
         pid = os.path.basename(d)
-        t = truthes.get(pid)
+        t = truths.get(pid)
         if t is None:
             #print "skipping directory %s" % pid
             continue
