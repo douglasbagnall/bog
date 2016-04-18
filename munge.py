@@ -99,11 +99,10 @@ def p_to_affinities(input, samples=100000):
             print "adjusting MIN to %.3g after %.3g" %  (min_scale, scale)
             continue
 
-        for v in clusters.values():
-            #print v
-            for x in v:
-                for y in v:
-                    totals[x, y] += 1.0
+        for c in clusters:
+            c = np.array(sorted(c), dtype=int)
+            for y in c:
+                totals[y, c] += 1
 
         runs -= 1
     totals *= 1.0 / (np.amax(totals) + 1e-10)
