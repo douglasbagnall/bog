@@ -65,7 +65,20 @@ def best_connections(rel_entropies):
     return entropies
 
 
-def p_to_affinities(input, samples=100000):
+def links_to_clusters(links):
+    symlinks = links | links.T
+    n = links.shape[0]
+    clusters = [set([x]) for x in range(n)]
+
+    for a, b in zip(*np.where(links)):
+        if clusters[a] != clusters[b]:
+            clusters[a].update(clusters[b])
+            clusters[b] = clusters[a]
+
+    return set(frozenset(x) for x in clusters)
+
+
+def p_to_affinities(input, samples=1000):
     """Treat the input array as a (somehow) scaled probability that two
     nodes are linked. The probability that they're in the same cluster
     has a transitive element.
@@ -74,13 +87,13 @@ def p_to_affinities(input, samples=100000):
     scale = 0.1
     min_scale = 1e-20
     max_scale = 1.0 / (1e-3 + np.min(input))
-    runs = 100
+    runs = samples
     while runs > 0:
         scale = random.uniform(min_scale, max_scale)
 
         r = np.random.random(input.shape)
         p = input * scale
-
+        #print p
         links = r < p
         clusters = links_to_clusters(links)
 
