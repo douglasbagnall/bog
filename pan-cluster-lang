@@ -200,10 +200,11 @@ def calc_ventropy_change(ventropies, prev_ventropies):
 
 
 def train(net, texts, leakage, epochs, leakage_decay,
-          learn_rate_decay, ignore_start, validation_text):
+          learn_rate_decay, ignore_start, validation_text,
+          validation_reverse_length):
 
     prev_ventropies = net.test(validation_text, ignore_start, 1)
-
+    v_history = []
     for i in range(epochs):
         print ("starting epoch %d with learn-rate %s, "
                "leakage %s" % (i + 1, net.learn_rate, leakage))
@@ -211,13 +212,19 @@ def train(net, texts, leakage, epochs, leakage_decay,
         for name, text in texts.items():
             net.train(text, name, leakage=leakage,
                       ignore_start=ignore_start)
-
+        net.save()
         ventropies = net.test(validation_text, ignore_start, 1)
         vstats = calc_ventropy_change(ventropies, prev_ventropies)
         prev_ventropies = ventropies
         print ("validation entropy %.3f±%.3f  diff % .3f±%.3f" % vstats)
+        if validation_reverse_length:
+            v_history.append(vstats[2] < 0.0)
+            v_history = v_history[-validation_reverse_length:]
+            if all(v_history):
+                print ("stopping because validation has been getting worse "
+                       "for %d epochs" % validation_reverse_length)
+                return
 
-        net.save()
         leakage *= leakage_decay
         net.learn_rate *= learn_rate_decay
 
@@ -328,8 +335,13 @@ def main():
 
     rnn_args.add_argument('-H', '--hidden-size', type=int, default=199,
                           metavar='<nodes>', help="number of hidden nodes")
-    rnn_args.add_argument('-e', '--sub-epochs', type=int, default=1,
+    rnn_args.add_argument('-e', '--epochs', type=int,
                           help="how many cycles through the texts to do")
+
+    rnn_args.add_argument('-V', '--stop-on-validation-reverse', type=int,
+                          default=0, help=("stop after this many worsening "
+                                           "validation results"))
+
     rnn_args.add_argument('--batch-size', type=int, default=20,
                           metavar='<int>', help="mini-batch size")
     rnn_args.add_argument('--presynaptic-noise', type=float, default=0.1,
@@ -341,9 +353,9 @@ def main():
                           help=("how much training leaks into other classes "
                                 "[0-1] or negative"))
     rnn_args.add_argument('--leakage-decay', type=float, default=0.9,
-                          help="change in leakage per sub-epoch")
+                          help="change in leakage per epoch")
     rnn_args.add_argument('--learn-rate-decay', type=float, default=1,
-                          help="change in learn-rate per sub-epoch")
+                          help="change in learn-rate per epoch")
     rnn_args.add_argument('-m', '--momentum', type=float, default=0.95,
                           metavar='<0-1>', help=charmodel.Net.momentum.__doc__)
     rnn_args.add_argument('--momentum-weight', type=float, default=0.5,
@@ -432,10 +444,15 @@ def main():
                                                       net_kwargs)
 
     if args.load is None:
-        train(net, texts, args.leakage, args.sub_epochs,
+        if args.epochs is None:
+            if args.stop_on_validation_reverse:
+                args.epochs = 100
+            else:
+                args.epochs = 1
+        train(net, texts, args.leakage, args.epochs,
               args.leakage_decay, args.learn_rate_decay,
               args.ignore_start,
-              v_text)
+              v_text, args.stop_on_validation_reverse)
         affinities, names, control_means = opine(net, texts, problems,
                                                  args.ignore_start)
     else:
