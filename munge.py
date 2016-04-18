@@ -95,7 +95,7 @@ def p_to_affinities(input, samples=100000):
 
         if len(clusters) == input.shape[0]:
             #nothing is connected
-            min_scale = (scale + min_scale) * 0.5
+            min_scale = (scale + 3 * min_scale) * 0.25
             print "adjusting MIN to %.3g after %.3g" %  (min_scale, scale)
             continue
 
