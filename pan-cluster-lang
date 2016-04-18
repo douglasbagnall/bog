@@ -17,8 +17,9 @@ import language
 
 from meta import write_results, makepath, save_opinions, load_opinions
 
-from munge import (write_normalised_png, entropy_to_p, best_connections,
-                   p_to_affinities)
+from munge import clip_range, clipped_neg_exp, clipped_logistic
+from munge import (write_normalised_png, best_connections,
+                   p_to_affinities, links_to_clusters)
 
 
 def opine(net, texts, problems, ignore_start):
@@ -91,19 +92,25 @@ def opine(net, texts, problems, ignore_start):
     return affinities, names, all_control_means
 
 
-def links_to_clusters(links):
-    symlinks = links | links.T
+def data_to_clusters(data, threshold, names=None):
+    links = data > threshold
     n = links.shape[0]
-    cluster_map = range(n)
-    for i in range(n):
-        c = cluster_map[i]
-        for j in range(n):
-            if i != j and symlinks[i, j]:
-                cluster_map[j] = c
-    clusters = {}
-    for i, c in enumerate(cluster_map):
-        clusters.setdefault(c, []).append(i)
-    return clusters
+    clusters = [set([x]) for x in range(n)]
+
+    for a, b in zip(*np.where(links)):
+        if clusters[a] != clusters[b]:
+            clusters[a].update(clusters[b])
+            clusters[b] = clusters[a]
+
+    clusters = set(frozenset(x) for x in clusters)
+    clusters_d = {}
+    for c in clusters:
+        k = min(c)
+        if names:
+            clusters_d[k] = frozenset(names[x] for x in c)
+        else:
+            clusters_d[k] = c
+    return clusters_d
 
 
 def affinities_to_clusters(affinities, threshold=None, n_min=None):
@@ -127,7 +134,7 @@ def affinities_to_clusters(affinities, threshold=None, n_min=None):
         links = affinities > threshold
         clusters = links_to_clusters(links)
 
-    return clusters.values()
+    return clusters
 
 
 def write_opinions(all_affinities, problems, control_means, output_dir):
@@ -136,7 +143,8 @@ def write_opinions(all_affinities, problems, control_means, output_dir):
         norm_affinities = raw_affinities - control_means[pid]
         diagonal = np.diagonal(norm_affinities)
         norm2_affinities = norm_affinities - diagonal
-        sigmoid_affinities, open_affinities = entropy_to_p(norm_affinities)
+        sigmoid_affinities = clipped_logistic(norm_affinities)
+        open_affinities = clipped_neg_exp(norm_affinities)
         transitive_affinities = p_to_affinities(open_affinities)
         transitive_sigmoid_affinities = p_to_affinities(sigmoid_affinities)
         symmetric_norm = norm2_affinities + norm2_affinities.T
@@ -168,10 +176,6 @@ def write_opinions(all_affinities, problems, control_means, output_dir):
         docnames = [x[0] for x in records]
         write_results(docnames, pid, -symmetric_norm, symmetric_clusters,
                       output_dir)
-        #write_results(docnames, pid, sigmoid_affinities, sigmoid_clusters,
-        #              output_dir, tag='sigmoid')
-        #write_results(docnames, pid, raw_affinities, raw_clusters,
-        #              output_dir, tag='raw')
 
 
 def calc_ventropy_change(ventropies, prev_ventropies):

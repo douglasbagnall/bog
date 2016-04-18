@@ -8,7 +8,10 @@ import argparse
 import csv
 import json
 
-mpl.rcParams['savefig.directory'] = 'results/images'
+from operator import neg
+
+from munge import best_connections, p_to_affinities
+from munge import clip_range, clipped_neg_exp, clipped_logistic
 
 
 def load_clustering_json(fn):
@@ -28,20 +31,22 @@ def load_clustering_json(fn):
 def data_to_clusters(data, threshold, names=None):
     links = data > threshold
     n = links.shape[0]
-    cluster_map = range(n)
-    for i in range(n):
-        c = cluster_map[i]
-        for j in range(n):
-            if i != j and links[i, j]:
-                cluster_map[j] = c
-    clusters = {}
-    if names:
-        for i, c in enumerate(cluster_map):
-            clusters.setdefault(c, set()).add(names[i])
-    else:
-        for i, c in enumerate(cluster_map):
-            clusters.setdefault(c, set()).add(i)
-    return clusters
+    clusters = [set([x]) for x in range(n)]
+
+    for a, b in zip(*np.where(links)):
+        if clusters[a] != clusters[b]:
+            clusters[a].update(clusters[b])
+            clusters[b] = clusters[a]
+
+    clusters = set(frozenset(x) for x in clusters)
+    clusters_d = {}
+    for c in clusters:
+        k = min(c)
+        if names:
+            clusters_d[k] = frozenset(names[x] for x in c)
+        else:
+            clusters_d[k] = c
+    return clusters_d
 
 
 def calc_fbcubed(truth, clusters):
@@ -63,6 +68,34 @@ def calc_fbcubed(truth, clusters):
     rr = n / r
     return 2.0 / (rp + rr)
 
+def symmetricise(x):
+    return (x + x.T) * 0.5
+
+def norm2(x):
+    return x - np.diagonal(x)
+
+LINE_WIDTH = 0.4
+
+STRATEGIES = {
+    'raw_asymmetric': (False, (neg,)),
+    'raw': (False, (neg, symmetricise)),
+    'simple': (True, (neg, symmetricise)),
+    'norm2': (True, (neg, norm2)),
+    'norm2-symmetric': (True, (neg, norm2, symmetricise)),
+    'asymmetric': (True, (neg,)),
+    'best_connections': (True, (neg, symmetricise, best_connections)),
+    'montecarlo': (True, (symmetricise, clipped_neg_exp, p_to_affinities)),
+    'montecarlo-norm2': (True, (norm2, symmetricise, clipped_neg_exp, p_to_affinities)),
+    'montecarlo-asymmetric': (True, (clipped_neg_exp, p_to_affinities)),
+    'montecarlo-raw': (False, (clipped_neg_exp, p_to_affinities)),
+    'montecarlo-sigmoid-raw': (False, (clipped_logistic, p_to_affinities)),
+    'montecarlo-sigmoid': (True, (symmetricise, clipped_logistic, p_to_affinities)),
+    'montecarlo-sigmoid-norm2': (True, (symmetricise, norm2, clipped_logistic,
+                                        p_to_affinities)),
+    'sigmoid': (True, (symmetricise, clipped_logistic,)),
+    'sigmoid-asymmetric': (True, (clipped_logistic,)),
+    'sigmoid-raw': (False, (clipped_logistic,)),
+}
 
 def main():
     parser = argparse.ArgumentParser()
@@ -72,11 +105,18 @@ def main():
     parser.add_argument('-g', '--ground-truth-dir',
                         help='cluster ground truth (json)')
 
-    parser.add_argument('--negate', action='store_true',
-                        help='the matrix is similarity, not divergence')
+    parser.add_argument('--strategy', default='simple',
+                        help='how to process the affinities (%s)' %
+                        (', '.join(STRATEGIES.keys())))
 
     parser.add_argument('--n-clusters', action='store_true',
                         help='plot the number of clusters at each threshold')
+
+    parser.add_argument('--n-links', action='store_true',
+                        help='plot the number of links at each threshold')
+
+    parser.add_argument('--delta', action='store_true',
+                        help='changes in threshold')
 
 
     args = parser.parse_args()
@@ -99,29 +139,55 @@ def main():
 
     for tag, data in affinities.items():
         print tag
-        if not args.negate:
-            data = -data
-        data += data.T
-        data *= 0.5
+        control, functions = STRATEGIES[args.strategy]
+        if control:
+            data -= control_means[tag]
+        for func in functions:
+            data = func(data)
 
-        d = np.triu(data)
-        thresholds = np.sort(d, None)
-        thresholds = np.trim_zeros(thresholds, 'b')
-        deltas = np.diff(thresholds) * 10
+        thresholds = np.unique(data)
 
         fig = plt.figure(figsize=(12, 10))
         ax = fig.add_subplot(111)
+        ax.set_title(tag)
+        ax.plot(thresholds, 'r.', linewidth=LINE_WIDTH, label='thresholds')
 
-        ax.plot(thresholds, 'r.', linewidth=0.3)
-        ax.plot(deltas, 'g.', linewidth=0.5)
+        if args.delta:
+            deltas = np.diff(thresholds) * 10
+            ax.plot(deltas, 'c.', linewidth=LINE_WIDTH, label='delta')
 
         if args.n_clusters:
             n_clusters = []
+            prev_n = -1e99
+            prev_t = -1e99
             for t in thresholds:
                 clusters = data_to_clusters(data, t)
-                n_clusters.append(len(clusters) / float(data.shape[0]))
+                n = len(clusters)
+                n_clusters.append(n / float(data.shape[0]))
+                if n < prev_n:
+                    print "prev     %d, threshold %s" % (prev_n, prev_t)
+                    print "clusters %d, threshold %s" % (n, t)
+                prev_n = n
+                prev_t = t
 
-            ax.plot(n_clusters, 'b.', linewidth=0.3)
+            ax.plot(n_clusters, 'g.', linewidth=LINE_WIDTH, label='n clusters')
+
+
+        if args.n_links:
+            n_links = []
+            w = data.shape[0]
+            scale = 1.0 / (w * w)
+            prev_links = 1e99
+            prev_t = -1e99
+            for t in thresholds:
+                links = np.sum(data > t)
+                if links > prev_links:
+                    print "prev links %d, threshold %s" % (prev_links, prev_t)
+                    print "     links %d, threshold %s" % (links, t)
+                prev_links = links
+                prev_t = t
+                n_links.append(links * scale)
+            ax.plot(n_links, 'y.', linewidth=LINE_WIDTH, label='n links')
 
 
         if true_clusters is not None:
@@ -134,9 +200,11 @@ def main():
                     score = calc_fbcubed(true_clusters, clusters)
                     old_clusters = clusters
                 fbcubed.append(score)
-            ax.plot(fbcubed, 'm.', linewidth=0.3)
+            ax.plot(fbcubed, 'b.', linewidth=LINE_WIDTH, label='fbcubed')
 
-        print len(thresholds), len(deltas), len(n_clusters)
+        plt.legend(loc='center left', numpoints=1, frameon=False,
+                   borderpad=0)
+        #sys.exit()
         plt.show()
 
 main()

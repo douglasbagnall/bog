@@ -35,14 +35,20 @@ def write_normalised_png(a, fn):
     im.save(fn)
 
 
-def entropy_to_p(raw_affinities):
-    print raw_affinities
-    x = np.maximum(raw_affinities, -40.0)
-    x = np.minimum(x, 40.0)
-    x *= 10
-    sigmoid_affinities = 1.0 / (1.0 + np.exp(x))
-    open_affinities = np.exp(-x)
-    return sigmoid_affinities, open_affinities
+def clip_range(x, extreme):
+    x = np.maximum(x, -extreme)
+    x = np.minimum(x, extreme)
+    return x
+
+
+def clipped_neg_exp(raw_affinities):
+    x = clip_range(raw_affinities, 40)
+    return np.exp(-x)
+
+
+def clipped_logistic(raw_affinities):
+    x = clip_range(raw_affinities, 40)
+    return 1.0 / (1.0 + np.exp(x * -3.0))
 
 
 def best_connections(rel_entropies):
