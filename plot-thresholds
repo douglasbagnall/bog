@@ -1,0 +1,142 @@
+#!/usr/bin/python
+import gzip, cPickle
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+import sys, os
+import argparse
+import csv
+import json
+
+mpl.rcParams['savefig.directory'] = 'results/images'
+
+
+def load_clustering_json(fn):
+    f = open(fn)
+    raw_clusters = json.load(f)
+    f.close()
+    documents = set()
+    clusters = []
+    for cluster in raw_clusters:
+        cluster = frozenset(x['document'] for x in cluster)
+        clusters.append(cluster)
+        documents.update(cluster)
+
+    return documents, clusters
+
+
+def data_to_clusters(data, threshold, names=None):
+    links = data > threshold
+    n = links.shape[0]
+    cluster_map = range(n)
+    for i in range(n):
+        c = cluster_map[i]
+        for j in range(n):
+            if i != j and links[i, j]:
+                cluster_map[j] = c
+    clusters = {}
+    if names:
+        for i, c in enumerate(cluster_map):
+            clusters.setdefault(c, set()).add(names[i])
+    else:
+        for i, c in enumerate(cluster_map):
+            clusters.setdefault(c, set()).add(i)
+    return clusters
+
+
+def calc_fbcubed(truth, clusters):
+    r = 0.0
+    p = 0.0
+    n = 0.0
+    #print truth
+    #print clusters
+    for cluster in clusters.values():
+        n += len(cluster)
+        for d in cluster:
+            tcluster = truth[d]
+            correct = len(cluster & tcluster)
+            pp = float(correct) / len(cluster)
+            rr = float(correct) / len(tcluster)
+            p += pp
+            r += rr
+    rp = n / p
+    rr = n / r
+    return 2.0 / (rp + rr)
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--input',
+                        help='input filename (pickle)')
+
+    parser.add_argument('-g', '--ground-truth-dir',
+                        help='cluster ground truth (json)')
+
+    parser.add_argument('--negate', action='store_true',
+                        help='the matrix is similarity, not divergence')
+
+    parser.add_argument('--n-clusters', action='store_true',
+                        help='plot the number of clusters at each threshold')
+
+
+    args = parser.parse_args()
+
+    f = open(args.input)
+    data = cPickle.load(f)
+    f.close()
+    affinities, names, control_means = data
+
+    if args.ground_truth_dir:
+        true_clusters = {}
+        for pid in affinities:
+            fn = os.path.join(args.ground_truth_dir, pid, 'clustering.json')
+            documents, clusters = load_clustering_json(fn)
+            for cluster in clusters:
+                for doc in cluster:
+                    true_clusters[doc] = cluster
+    else:
+        true_clusters = None
+
+    for tag, data in affinities.items():
+        print tag
+        if not args.negate:
+            data = -data
+        data += data.T
+        data *= 0.5
+
+        d = np.triu(data)
+        thresholds = np.sort(d, None)
+        thresholds = np.trim_zeros(thresholds, 'b')
+        deltas = np.diff(thresholds) * 10
+
+        fig = plt.figure(figsize=(12, 10))
+        ax = fig.add_subplot(111)
+
+        ax.plot(thresholds, 'r.', linewidth=0.3)
+        ax.plot(deltas, 'g.', linewidth=0.5)
+
+        if args.n_clusters:
+            n_clusters = []
+            for t in thresholds:
+                clusters = data_to_clusters(data, t)
+                n_clusters.append(len(clusters) / float(data.shape[0]))
+
+            ax.plot(n_clusters, 'b.', linewidth=0.3)
+
+
+        if true_clusters is not None:
+            fbcubed = []
+            old_clusters = None
+            score = None
+            for t in thresholds:
+                clusters = data_to_clusters(data, t, names[tag])
+                if clusters != old_clusters:
+                    score = calc_fbcubed(true_clusters, clusters)
+                    old_clusters = clusters
+                fbcubed.append(score)
+            ax.plot(fbcubed, 'm.', linewidth=0.3)
+
+        print len(thresholds), len(deltas), len(n_clusters)
+        plt.show()
+
+main()
