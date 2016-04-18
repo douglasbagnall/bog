@@ -202,7 +202,7 @@ def affinities_to_clusters(affinities, threshold=None, n_min=None):
         top = np.amax(affinities)
         bottom = np.amin(affinities)
         #threshold = (top + bottom) * 0.5
-        threshold = np.percentile(affinities, 95)
+        threshold = np.percentile(affinities, 98)
         print ("trying threshold of %.3g (min %.3g, max %.3g)" %
                (threshold, bottom, top))
 
