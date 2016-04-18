@@ -361,7 +361,7 @@ def get_net_and_corpus(srcdir, controldir, control_n, lang,
     return net, remapped, problems, v_text
 
 
-def make_directory_name(basename, lang):
+def make_directory_name(basename, lang, reloading=False):
     # make up a good name
     here = os.path.dirname(__file__)
     git_hash = subprocess.check_output(['git', '-C', here,
@@ -371,6 +371,8 @@ def make_directory_name(basename, lang):
     mod = '-'
     if subprocess.call(['git', 'diff-files', '--quiet']):
         mod = '+'
+    if reloading:
+        basename = 'reload-' + basename
     return 'results/%s-%s-%s%s-%s' % (basename, lang, git_hash, mod, now)
 
 
@@ -470,7 +472,7 @@ def main():
         random.seed(args.rng_seed)
 
     if args.output_dir is None:
-        dir = make_directory_name(args.basename, args.lang)
+        dir = make_directory_name(args.basename, args.lang, args.load)
         args.output_dir = dir
 
     if not args.load and args.auto_save:
