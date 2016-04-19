@@ -125,13 +125,13 @@ def p_to_affinities(input, samples=100):
             # everything is connected, so the scale is too high
             # make sure we don't go higher.
             max_scale = (scale + max_scale) * 0.5
-            print "adjusting max to %.3g after %.3g" %  (max_scale, scale)
+            #print "adjusting max to %.3g after %.3g" %  (max_scale, scale)
             continue
 
         if len(clusters) == input.shape[0]:
             #nothing is connected
             min_scale = (scale + 3 * min_scale) * 0.25
-            print "adjusting MIN to %.3g after %.3g" %  (min_scale, scale)
+            #print "adjusting MIN to %.3g after %.3g" %  (min_scale, scale)
             continue
 
         for c in clusters:
