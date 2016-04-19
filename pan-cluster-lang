@@ -92,27 +92,6 @@ def opine(net, texts, problems, ignore_start):
     return affinities, names, all_control_means
 
 
-def data_to_clusters(data, threshold, names=None):
-    links = data > threshold
-    n = links.shape[0]
-    clusters = [set([x]) for x in range(n)]
-
-    for a, b in zip(*np.where(links)):
-        if clusters[a] != clusters[b]:
-            clusters[a].update(clusters[b])
-            clusters[b] = clusters[a]
-
-    clusters = set(frozenset(x) for x in clusters)
-    clusters_d = {}
-    for c in clusters:
-        k = min(c)
-        if names:
-            clusters_d[k] = frozenset(names[x] for x in c)
-        else:
-            clusters_d[k] = c
-    return clusters_d
-
-
 def affinities_to_clusters(affinities, threshold=None, n_min=None):
     if threshold is None and n_min is None:
         # lets try to find a threshold that will give us a middle
