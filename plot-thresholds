@@ -100,6 +100,9 @@ def main():
     parser.add_argument('--delta', action='store_true',
                         help='changes in threshold')
 
+    parser.add_argument('--time', action='store_true',
+                        help=('show no figure, print elapsed '
+                              'time for first problem'))
 
     args = parser.parse_args()
 
@@ -107,6 +110,9 @@ def main():
     data = cPickle.load(f)
     f.close()
     affinities, names, control_means = data
+
+    if args.time:
+        start_time = time.time()
 
     if args.ground_truth_dir:
         true_clusters = {}
@@ -185,7 +191,11 @@ def main():
 
         plt.legend(loc='center left', numpoints=1, frameon=False,
                    borderpad=0)
-        #sys.exit()
+
+        if args.time:
+            elapsed = time.time() - start_time
+            print "%s %s took %.2f seconds" % (tag, data.shape, elapsed)
+            sys.exit()
         plt.show()
 
 main()
