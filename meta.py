@@ -97,7 +97,34 @@ def write_results(docnames, problem, affinities,
 #
 # All dicts should be the same size
 
+def validate_opinions(opinions):
+    h, w = opinions[1].shape
+    assert(w == h)
+    expected = [
+        (list, list,),
+        (np.ndarray, (w, h)),
+        (list, str,),
+        (np.ndarray, (1, h)),
+        (np.ndarray, (w, 1)),
+    ]
+    keys = set(opinions[0])
+    for d, expected in zip(opinions, expected):
+        assert(set(d) == keys)
+        e0 = expected[0]
+        for v in d.values():
+            assert(isinstance(v, e0))
+        if e0 is list:
+            e1 = expected[1]
+            for v in d.values():
+                assert(isinstance(v[0], e1))
+        elif e0 is np.ndarray:
+            shape = expected[1]
+            for v in d.values():
+                assert(v.shape == shape)
+
+
 def save_opinions(dest, *opinions):
+    validate_opinions(opinions)
     makepath(dest)
     f = open(dest, 'w')
     pickle.dump(opinions, f)
@@ -109,4 +136,5 @@ def load_opinions(src):
     f = open(src)
     opinions = pickle.load(f)
     f.close()
+    validate_opinions(opinions)
     return opinions
