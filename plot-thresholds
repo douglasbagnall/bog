@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import os
 import sys
 import argparse
-import json
 import time
 
 from operator import neg
@@ -41,29 +40,42 @@ def symmetricise(x):
 def norm2(x):
     return x - np.diagonal(x)
 
+
+def _norm_texts(x, control_texts, control_models):
+    return x - control_texts
+
+
+def _norm_models(x, control_texts, control_models):
+    return x - control_models
+
+
+def _norm_both(x, control_texts, control_models):
+    return 2 * x - control_texts - control_models
+
+
+def _norm_none(x, control_texts, control_models):
+    return x
+
+
 LINE_WIDTH = 0.5
 
 STRATEGIES = {
-    'raw_asymmetric': (False, (neg,)),
-    'raw': (False, (neg, symmetricise)),
-    'simple': (True, (neg, symmetricise)),
-    'norm2': (True, (neg, norm2)),
-    'norm2-symmetric': (True, (neg, norm2, symmetricise)),
-    'asymmetric': (True, (neg,)),
-    'best_connections': (True, (neg, symmetricise, best_connections)),
-    'montecarlo': (True, (symmetricise, clipped_neg_exp, p_to_affinities)),
-    'montecarlo-norm2': (True, (norm2, symmetricise, clipped_neg_exp,
-                                p_to_affinities)),
-    'montecarlo-asymmetric': (True, (clipped_neg_exp, p_to_affinities)),
-    'montecarlo-raw': (False, (clipped_neg_exp, p_to_affinities)),
-    'montecarlo-sigmoid-raw': (False, (clipped_logistic, p_to_affinities)),
-    'montecarlo-sigmoid': (True, (symmetricise, clipped_logistic,
-                                  p_to_affinities)),
-    'montecarlo-sigmoid-norm2': (True, (symmetricise, norm2, clipped_logistic,
-                                        p_to_affinities)),
-    'sigmoid': (True, (symmetricise, clipped_logistic,)),
-    'sigmoid-asymmetric': (True, (clipped_logistic,)),
-    'sigmoid-raw': (False, (clipped_logistic,)),
+    'asymmetric': (neg,),
+    'simple': (neg, symmetricise),
+    'norm2': (neg, norm2),
+    'norm2-symmetric': (neg, norm2, symmetricise),
+    'best_connections': (neg, symmetricise, best_connections),
+    'montecarlo': (symmetricise, clipped_neg_exp, p_to_affinities),
+    'montecarlo-norm2': (norm2, symmetricise, clipped_neg_exp,
+                         p_to_affinities),
+    'montecarlo-asymmetric': (clipped_neg_exp, p_to_affinities),
+    'montecarlo-sigmoid-asymmetric': (clipped_logistic, p_to_affinities),
+    'montecarlo-sigmoid': (symmetricise, clipped_logistic,
+                           p_to_affinities),
+    'montecarlo-sigmoid-norm2': (symmetricise, norm2, clipped_logistic,
+                                 p_to_affinities),
+    'sigmoid': (symmetricise, clipped_logistic,),
+    'sigmoid-asymmetric': (clipped_logistic,),
 }
 
 
@@ -74,6 +86,10 @@ def main():
 
     parser.add_argument('-g', '--ground-truth-dir',
                         help='cluster ground truth (json)')
+
+    parser.add_argument('-n', '--normalise', default='texts',
+                        choices=('texts', 'models', 'both', 'none'),
+                        help='normailse in this dimension')
 
     parser.add_argument('--strategy', default='simple',
                         help='how to process the affinities (%s)' %
@@ -107,6 +123,7 @@ def main():
         affinities, names, control_texts, control_models = data
     except ValueError:
         affinities, names, control_texts = data
+        control_models = None
 
     if args.time:
         start_time = time.time()
@@ -124,7 +141,7 @@ def main():
             true_ranking = {}
             for pid in affinities:
                 fn = os.path.join(args.ground_truth_dir, pid, 'ranking.json')
-                true_ranking[pid] = load_clustering_json(fn)
+                true_ranking[pid] = load_ranking_json(fn)
         else:
             true_ranking = None
     elif args.show_map:
@@ -134,12 +151,12 @@ def main():
         true_clusters = None
         true_ranking = None
 
-
     for tag, data in affinities.items():
         print tag
-        control, functions = STRATEGIES[args.strategy]
-        if control:
-            data -= control_texts[tag]
+        norm = globals.get('_norm_' + args.normalise)
+        data = norm(data, control_texts, control_models)
+
+        functions = STRATEGIES[args.strategy]
         for func in functions:
             data = func(data)
 
