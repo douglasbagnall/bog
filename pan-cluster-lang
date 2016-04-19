@@ -22,74 +22,86 @@ from munge import (write_normalised_png, best_connections,
                    p_to_affinities, links_to_clusters)
 
 
-def opine(net, texts, problems, ignore_start):
-    print "beginning opine"
+def full_entropy_matrix(net, texts, ignore_start):
+    entropies_cache = {}
+    for tid, text in texts.items():
+        entropies = net.test(text, ignore_start, 0)
+        entropies_cache[tid] = entropies
+    return entropies_cache
+
+
+def get_problem_and_control_sets(entropy_cache, problems):
+    classified_tids = set()
+    for records in problems.values():
+        classified_tids.update(x[2] for x in records)
+
+    control_tids = set(x for x in entropy_cache
+                       if x not in classified_tids)
+
+    print ("found %d classified texts and %d control (%d total)" %
+           (len(classified_tids), len(control_tids), len(entropy_cache)))
+
+    return classified_tids, control_tids
+
+
+def entropies_to_opinions(entropy_cache, problems):
     # Get the cross-entropy between all subnets against the texts of
     # each problem. Because texts are often in more than one problem,
     # we keep a cache (this is sort-of expensive).
     affinities = {}
-    all_control_means = {}
     names = {}
-    entropies_cache = {}
-    classified_tids = set()
-    for records in problems.values():
-        classified_tids.update(x[2] for x in records)
-    control_tids = set(x for x in texts if x not in classified_tids)
-    print ("found %d classified texts and %d control (%d total)" %
-           (len(classified_tids), len(control_tids), len(texts)))
+    all_control_texts = {}
+    all_control_models = {}
+
+    classified_tids, control_tids = \
+        get_problem_and_control_sets(entropy_cache, problems)
+
+    control_text_lut = {}
+    control_model_lut = {k: 0 for k in classified_tids}
+    control_n = max(1.0, len(control_tids))
+
+    for tid in classified_tids:
+        entropies = entropy_cache[tid]
+        control_text_lut[tid] = (sum(entropies[k] for k in control_tids) /
+                                 control_n)
+
+    for tid in control_tids:
+        entropies = entropy_cache[tid]
+        for k in classified_tids:
+            control_model_lut[k] += entropies[k]
+
+    for k in classified_tids:
+        control_model_lut[k] /= control_n
 
     for pid, records in problems.items():
-        entropy_sum = 0.0
-        entropy_matrix = []
-        text_ids = [x[2] for x in records]
-        control_means = []
-        for fn, ffn, tid in records:
-            if tid in entropies_cache:
-                entropies = entropies_cache[tid]
-                print "using cached entropies for %s" % (tid,)
-            else:
-                text = texts[tid]
-                # get entropies as a dictionary, indexed by fn.
-                # (because we don't care about ones that aren't in the
-                # problem, except to get an idea of average
-                # cross-entropy).
-                entropies = net.test(text, ignore_start, 0)
-                entropies_cache[tid] = entropies
+        names[pid], _, text_ids = zip(*records)
 
+        entropy_matrix = []
+        control_texts = []
+        control_models = []
+        for fn, ffn, tid in records:
+            entropies = entropies_cache[tid]
             local_entropies = [entropies[x] for x in text_ids]
 
-            # Calculate the mean cross-entropies given by control models
-
-            if len(control_tids) < 10:
-                print ("There are too few control texts; using non-local "
-                       "texts for control (which is dodgy)")
-                local_set = set(text_ids)
-                control_entropies = [v for k, v in entropies.iteritems()
-                                     if k not in local_set]
-            else:
-                control_entropies = [v for k, v in entropies.iteritems()
-                                     if k in control_tids]
-
-            control_entropy = sum(control_entropies)
-            if len(control_entropies) > 1:
-                control_entropy /= len(control_entropies)
-
-            local_mean = sum(local_entropies) / len(local_entropies)
-            print ("found %d local entropies, µ %.3f, %d control µ %.3f "
-                   "diff %.3f" % (len(local_entropies), local_mean,
-                                  len(control_entropies), control_entropy,
-                                  control_entropy - local_mean))
-
             entropy_matrix.append(local_entropies)
-            # control_means is list of lists, so right shape for
+            # control_texts is list of lists, the right shape for
             # column-oriented subtraction.
-            control_means.append([control_entropy])
+            control_texts.append([control_text_lut[tid]])
+            control_models.append(control_model_lut[tid])
 
         affinities[pid] = np.array(entropy_matrix)
-        all_control_means[pid] = np.array(control_means)
-        names[pid] = [x[0] for x in records]
+        all_control_texts[pid] = np.array(control_texts)
+        all_control_models[pid] = np.array(control_models)
 
-    return affinities, names, all_control_means
+    return affinities, names, all_control_texts, all_control_models
+
+
+def opine(net, texts, problems, ignore_start):
+    print "beginning opine"
+    start = time.time()
+    entropy_cache = full_entropy_matrix(net, texts, ignore_start)
+    print "got raw entropies in %.1fs" % (time.time() - start)
+    return entropies_to_opinions(entropy_cache, problems)
 
 
 def affinities_to_clusters(affinities, threshold=None, n_min=None):
@@ -432,14 +444,17 @@ def main():
               args.leakage_decay, args.learn_rate_decay,
               args.ignore_start,
               v_text, args.stop_on_validation_reverse)
-        affinities, names, control_means = opine(net, texts, problems,
-                                                 args.ignore_start)
+        affinities, names, controls_texts, controls_models = \
+                    opine(net, texts, problems, args.ignore_start)
     else:
-        affinities, names, control_means = load_opinions(args.load)
+        affinities, names, controls_texts, controls_models = \
+                    load_opinions(args.load)
 
     if args.save is not None:
-        save_opinions(args.save, affinities, names, control_means)
+        save_opinions(args.save, affinities, names, control_texts,
+                      control_models)
 
-    write_opinions(affinities, problems, control_means, args.output_dir)
+    write_opinions(affinities, problems, control_means, control_models,
+                   args.output_dir)
 
 main()

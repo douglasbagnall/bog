@@ -112,7 +112,10 @@ def main():
     f = open(args.input)
     data = cPickle.load(f)
     f.close()
-    affinities, names, control_means = data
+    try:
+        affinities, names, control_texts, control_models = data
+    except ValueError:
+        affinities, names, control_texts = data
 
     if args.time:
         start_time = time.time()
@@ -132,7 +135,7 @@ def main():
         print tag
         control, functions = STRATEGIES[args.strategy]
         if control:
-            data -= control_means[tag]
+            data -= control_texts[tag]
         for func in functions:
             data = func(data)
 
