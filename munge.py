@@ -84,7 +84,23 @@ def links_to_clusters(links):
     return set(frozenset(x) for x in clusters)
 
 
-def p_to_affinities(input, samples=1000):
+def data_to_clusters(data, threshold, names=None):
+    links = data > threshold
+    clusters = links_to_clusters(links)
+    if names is None:
+        return clusters
+
+    clusters_d = {}
+    for c in clusters:
+        k = min(c)
+        if names:
+            clusters_d[k] = frozenset(names[x] for x in c)
+        else:
+            clusters_d[k] = c
+    return clusters_d
+
+
+def p_to_affinities(input, samples=100):
     """Treat the input array as a (somehow) scaled probability that two
     nodes are linked. The probability that they're in the same cluster
     has a transitive element.

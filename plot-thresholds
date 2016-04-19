@@ -10,7 +10,7 @@ import json
 
 from operator import neg
 
-from munge import best_connections, p_to_affinities
+from munge import best_connections, p_to_affinities, data_to_clusters
 from munge import clip_range, clipped_neg_exp, clipped_logistic
 
 
@@ -26,28 +26,6 @@ def load_clustering_json(fn):
         documents.update(cluster)
 
     return documents, clusters
-
-
-def data_to_clusters(data, threshold, names=None):
-    links = data > threshold
-    n = links.shape[0]
-    clusters = [set([x]) for x in range(n)]
-
-    for a, b in zip(*np.where(links)):
-        if clusters[a] != clusters[b]:
-            clusters[a].update(clusters[b])
-            clusters[b] = clusters[a]
-
-    clusters = set(frozenset(x) for x in clusters)
-    clusters_d = {}
-    for c in clusters:
-        k = min(c)
-        if names:
-            clusters_d[k] = frozenset(names[x] for x in c)
-        else:
-            clusters_d[k] = c
-    return clusters_d
-
 
 def calc_fbcubed(truth, clusters):
     r = 0.0
