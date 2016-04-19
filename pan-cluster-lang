@@ -328,7 +328,7 @@ def main():
     parser.add_argument('--validation-corpus',
                         default=language.VALIDATION_CORPUS,
                         help="use this text for validation")
-    parser.add_argument('-C', '--control-n', default=0, type=int, #XXX up to n altogether?
+    parser.add_argument('-C', '--control-n', default=40, type=int,
                         help="how many controls to add")
     parser.add_argument('--reverse', action='store_true',
                         help="process all texts in reverse")
