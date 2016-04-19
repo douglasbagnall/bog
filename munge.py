@@ -63,9 +63,10 @@ def links_to_clusters(links):
     clusters = [set([x]) for x in range(n)]
 
     for a, b in zip(*np.where(links)):
-        if clusters[a] != clusters[b]:
+        if clusters[a] is not clusters[b]:
             clusters[a].update(clusters[b])
-            clusters[b] = clusters[a]
+            for x in clusters[b]:
+                clusters[x] = clusters[a]
 
     return set(frozenset(x) for x in clusters)
 
