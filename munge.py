@@ -126,3 +126,11 @@ def p_to_affinities(input, samples=1000):
         runs -= 1
     totals *= 1.0 / (np.amax(totals) + 1e-10)
     return totals
+
+
+def shuffle_array(a):
+    # np.random.shuffle does only one dimension.
+    shape = a.shape
+    a = a.flatten()
+    np.random.shuffle(a)
+    return a.reshape(shape)
