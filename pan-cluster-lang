@@ -12,389 +12,40 @@ import random
 import json
 import numpy as np
 import errno
-
+import arguments
 import language
 
 from meta import write_results, makepath, save_opinions, load_opinions
-
-from munge import clipped_neg_exp, clipped_logistic
-from munge import (write_normalised_png, best_connections,
-                   p_to_affinities, links_to_clusters)
-
-
-def full_entropy_matrix(net, texts, ignore_start):
-    entropies_cache = {}
-    for tid, text in texts.items():
-        entropies = net.test(text, ignore_start, 0)
-        entropies_cache[tid] = entropies
-    return entropies_cache
-
-
-def get_problem_and_control_sets(entropy_cache, problems):
-    classified_tids = set()
-    for records in problems.values():
-        classified_tids.update(x[2] for x in records)
-
-    control_tids = set(x for x in entropy_cache
-                       if x not in classified_tids)
-
-    print ("found %d classified texts and %d control (%d total)" %
-           (len(classified_tids), len(control_tids), len(entropy_cache)))
-
-    return classified_tids, control_tids
-
-
-def entropies_to_opinions(entropy_cache, problems):
-    # Get the cross-entropy between all subnets against the texts of
-    # each problem. Because texts are often in more than one problem,
-    # we keep a cache (this is sort-of expensive).
-    affinities = {}
-    names = {}
-    all_control_texts = {}
-    all_control_models = {}
-
-    classified_tids, control_tids = \
-        get_problem_and_control_sets(entropy_cache, problems)
-
-    control_text_lut = {}
-    control_model_lut = {k: 0 for k in classified_tids}
-    control_n = max(1.0, len(control_tids))
-
-    for tid in classified_tids:
-        entropies = entropy_cache[tid]
-        control_text_lut[tid] = (sum(entropies[k] for k in control_tids) /
-                                 control_n)
-
-    for tid in control_tids:
-        entropies = entropy_cache[tid]
-        for k in classified_tids:
-            control_model_lut[k] += entropies[k]
-
-    for k in classified_tids:
-        control_model_lut[k] /= control_n
-
-    for pid, records in problems.items():
-        names[pid], _, text_ids = zip(*records)
-
-        entropy_matrix = []
-        control_texts = []
-        control_models = []
-        for fn, ffn, tid in records:
-            entropies = entropies_cache[tid]
-            local_entropies = [entropies[x] for x in text_ids]
-
-            entropy_matrix.append(local_entropies)
-            # control_texts is list of lists, the right shape for
-            # column-oriented subtraction.
-            control_texts.append([control_text_lut[tid]])
-            control_models.append(control_model_lut[tid])
-
-        affinities[pid] = np.array(entropy_matrix)
-        all_control_texts[pid] = np.array(control_texts)
-        all_control_models[pid] = np.array(control_models)
-
-    return affinities, names, all_control_texts, all_control_models
-
-
-def opine(net, texts, problems, ignore_start):
-    print "beginning opine"
-    start = time.time()
-    entropy_cache = full_entropy_matrix(net, texts, ignore_start)
-    print "got raw entropies in %.1fs" % (time.time() - start)
-    return entropies_to_opinions(entropy_cache, problems)
-
-
-def affinities_to_clusters(affinities, threshold=None, n_min=None):
-    if threshold is None and n_min is None:
-        # lets try to find a threshold that will give us a middle
-        # number of clusters.
-        top = np.amax(affinities)
-        bottom = np.amin(affinities)
-        threshold = np.percentile(affinities, 98)
-        print ("trying threshold of %.3g (min %.3g, max %.3g)" %
-               (threshold, bottom, top))
-
-    if threshold is None:
-        for threshold in sorted(set(affinities)):
-            links = affinities > threshold
-            clusters = links_to_clusters(links)
-            if len(clusters) > n_min:
-                break
-    else:
-        links = affinities > threshold
-        clusters = links_to_clusters(links)
-
-    return clusters
-
-
-def write_opinions(all_affinities, problems, control_means, output_dir):
-    for pid, records in problems.items():
-        raw_affinities = all_affinities[pid]
-        norm_affinities = raw_affinities - control_means[pid]
-        diagonal = np.diagonal(norm_affinities)
-        norm2_affinities = norm_affinities - diagonal
-        sigmoid_affinities = clipped_logistic(norm_affinities)
-        open_affinities = clipped_neg_exp(norm_affinities)
-        transitive_affinities = p_to_affinities(open_affinities)
-        transitive_sigmoid_affinities = p_to_affinities(sigmoid_affinities)
-        symmetric_norm = norm2_affinities + norm2_affinities.T
-
-        connected_affinities = best_connections(symmetric_norm)
-
-        clusters = affinities_to_clusters(transitive_affinities)
-        sigmoid_clusters = affinities_to_clusters(sigmoid_affinities)
-        raw_clusters = affinities_to_clusters(-raw_affinities)
-        norm_clusters = affinities_to_clusters(-norm_affinities)
-        symmetric_clusters = affinities_to_clusters(-symmetric_norm)
-        norm2_clusters = affinities_to_clusters(-norm2_affinities)
-        connected_clusters = affinities_to_clusters(-connected_affinities)
-
-        fn = os.path.join(output_dir, '%s-%%s.png' % pid)
-        print fn
-        write_normalised_png(raw_affinities, fn % 'raw_affinities')
-        write_normalised_png(norm_affinities, fn % 'norm_affinities')
-        write_normalised_png(norm2_affinities, fn % 'norm2_affinities')
-        write_normalised_png(symmetric_norm, fn % 'symmetric_norm')
-        write_normalised_png(sigmoid_affinities, fn % 'sigmoid_affinities')
-        write_normalised_png(open_affinities, fn % 'open_affinities')
-        write_normalised_png(connected_affinities, fn % 'connected_affinities')
-        write_normalised_png(transitive_sigmoid_affinities,
-                             fn % 'transitive_sigmoid_affinities')
-        write_normalised_png(transitive_affinities,
-                             fn % 'transitive_affinities')
-
-        docnames = [x[0] for x in records]
-        write_results(docnames, pid, -symmetric_norm, symmetric_clusters,
-                      output_dir)
-
-
-def calc_ventropy_change(ventropies, prev_ventropies):
-    ve_sum = 0.0
-    ve_sum2 = 0.0
-    ve_diff_sum = 0.0
-    ve_diff_sum2 = 0.0
-    for prev, e in zip(prev_ventropies, ventropies):
-        diff = prev - e
-        ve_diff_sum += diff
-        ve_diff_sum2 += diff * diff
-        ve_sum += e
-        ve_sum2 += e * e
-    ve_scale = 1.0 / len(ventropies)
-    ve_mean = ve_sum * ve_scale
-    ve_stddev = (ve_sum2 * ve_scale - ve_mean * ve_mean) ** 0.5
-    ve_diff_mean = ve_diff_sum * ve_scale
-    ve_diff_stddev = (ve_diff_sum2 * ve_scale -
-                      ve_diff_mean * ve_diff_mean) ** 0.5
-
-    return (ve_mean, ve_stddev, ve_diff_mean, ve_diff_stddev)
-
-
-def train(net, texts, leakage, epochs, leakage_decay,
-          learn_rate_decay, ignore_start, validation_text,
-          validation_reverse_length):
-
-    prev_ventropies = net.test(validation_text, ignore_start, 1)
-    v_history = []
-    for i in range(epochs):
-        print ("starting epoch %d with learn-rate %s, "
-               "leakage %s" % (i + 1, net.learn_rate, leakage))
-
-        for name, text in texts.items():
-            net.train(text, name, leakage=leakage,
-                      ignore_start=ignore_start)
-        net.save()
-        ventropies = net.test(validation_text, ignore_start, 1)
-        vstats = calc_ventropy_change(ventropies, prev_ventropies)
-        prev_ventropies = ventropies
-        print ("validation entropy %.3f±%.3f  diff % .3f±%.3f" % vstats)
-        if validation_reverse_length:
-            v_history.append(vstats[2] < 0.0)
-            v_history = v_history[-validation_reverse_length:]
-            if all(v_history):
-                print ("stopping because validation has been getting worse "
-                       "for %d epochs" % validation_reverse_length)
-                return
-
-        leakage *= leakage_decay
-        net.learn_rate *= learn_rate_decay
-
-
-def get_net_and_corpus(srcdir, controldir, control_n, lang,
-                       reverse, validation_dir, net_kwargs):
-    print srcdir
-    texts, problems = language.load_corpus(srcdir, lang)
-
-    if control_n and controldir:
-        control_texts, _ = language.load_control_texts(controldir, lang)
-
-        if len(control_texts) > control_n:
-            # sort, to avoid hashing indeterminacy
-            c_items = sorted(control_texts.items())
-            random.shuffle(c_items)
-            control_texts = dict(c_items[:control_n])
-
-        texts.update(control_texts)
-
-        print "using %d control texts; wanted %d" % (len(control_texts),
-                                                     control_n)
-
-    # remap into net enumeration encoding
-    alphabet = charmodel.Alphabet(''.join(texts.values()), ignore_case=False,
-                                  threshold=1e-10)
-    print >>sys.stderr, "alphabet is %s" % (alphabet.alphabet,)
-
-    remapped = {}
-    for k, v in texts.iteritems():
-        t = alphabet.encode_text(v)
-        if reverse:
-            t = ''.join(reversed(t))
-        remapped[k] = t
-
-    if validation_dir:
-        # validation text doesn't go in texts.
-        v_texts, _ = language.load_control_texts(validation_dir, lang)
-        v_text = alphabet.encode_text('\n'.join(v_texts.values()))
-        if reverse:
-            v_text = ''.join(reversed(v_text))
-
-    textnames = sorted(texts.keys())
-
-    metadata = json.dumps({
-        'alphabet': alphabet.alphabet,
-        'collapse_chars': alphabet.collapsed_chars,
-        'version': 2,
-        'class_names': textnames,
-        'case_insensitive': False,
-        'utf8': True,
-        'collapse_space': False,
-        'reverse': reverse,
-    }, sort_keys=True)
-
-    net = charmodel.Net(alphabet, textnames, metadata=metadata, **net_kwargs)
-    return net, remapped, problems, v_text
-
-
-def make_directory_name(basename, lang, reloading=False):
-    # make up a good name
-    here = os.path.dirname(__file__)
-    git_hash = subprocess.check_output(['git', '-C', here,
-                                        'rev-parse',
-                                        '--short', 'HEAD']).strip()
-    now = time.strftime('%Y-%m-%d+%H-%M-%S')
-    mod = '-'
-    if subprocess.call(['git', 'diff-files', '--quiet']):
-        mod = '+'
-    if reloading:
-        basename = 'reload-' + basename
-    return 'results/%s-%s-%s%s-%s' % (basename, lang, git_hash, mod, now)
 
 
 def main():
     parser = argparse.ArgumentParser()
     rnn_args = parser.add_argument_group('RNN arguments')
 
-    parser.add_argument('lang', help="the language to look at")
-    parser.add_argument('-i', '--input-dir', default=language.TRAINING_CORPUS,
-                        help='find problems here')
-    parser.add_argument('-o', '--output-dir',
-                        help='write results here')
+    learn_corpus_args = []
 
-    parser.add_argument('--load',
-                        help='load raw opinions from here')
-    parser.add_argument('--save',
-                        help='save raw opinions here')
-    parser.add_argument('-S', '--auto-save', action='store_true',
-                        help='save raw opinions in results dir')
+    def add_arg(*args, **kwargs):
+        arg = parser.add_argument(*args, **kwargs)
+        learn_corpus_args.append(arg)
 
-    parser.add_argument('-n', '--basename', default='pan',
-                        help="base filenames upon this")
-    parser.add_argument('-v', '--verbose', action='store_true',
-                        help="print more to stderr")
-    parser.add_argument('-r', '--rng-seed', type=int, default=-1,
-                        help="rng seed (-1 for auto)")
+    def rnn_arg(*args, **kwargs):
+        arg = rnn_args.add_argument(*args, **kwargs)
+        learn_corpus_args.append(arg)
 
-    parser.add_argument('-c', '--control-corpus',
-                        default=language.CONTROL_CORPUS,
-                        help="use this alternative control corpus")
-    parser.add_argument('--validation-corpus',
-                        default=language.VALIDATION_CORPUS,
-                        help="use this text for validation")
-    parser.add_argument('-C', '--control-n', default=40, type=int,
-                        help="how many controls to add")
-    parser.add_argument('--reverse', action='store_true',
-                        help="process all texts in reverse")
-
-    rnn_args.add_argument('-H', '--hidden-size', type=int, default=199,
-                          metavar='<nodes>', help="number of hidden nodes")
-    rnn_args.add_argument('-e', '--epochs', type=int,
-                          help="how many cycles through the texts to do")
-
-    rnn_args.add_argument('-V', '--stop-on-validation-reverse', type=int,
-                          default=0, help=("stop after this many worsening "
-                                           "validation results"))
-
-    rnn_args.add_argument('--batch-size', type=int, default=20,
-                          metavar='<int>', help="mini-batch size")
-    rnn_args.add_argument('--presynaptic-noise', type=float, default=0.1,
-                          metavar='<float>',
-                          help="Add this much presynaptic noise")
-    rnn_args.add_argument('-l', '--learn-rate', type=float, default=1e-1,
-                          help=charmodel.Net.learn_rate.__doc__)
-    rnn_args.add_argument('-L', '--leakage', type=float, default=-2.0,
-                          help=("how much training leaks into other classes "
-                                "[0-1] or negative"))
-    rnn_args.add_argument('--leakage-decay', type=float, default=0.9,
-                          help="change in leakage per epoch")
-    rnn_args.add_argument('--learn-rate-decay', type=float, default=1,
-                          help="change in learn-rate per epoch")
-    rnn_args.add_argument('-m', '--momentum', type=float, default=0.95,
-                          metavar='<0-1>', help=charmodel.Net.momentum.__doc__)
-    rnn_args.add_argument('--momentum-weight', type=float, default=0.5,
-                          metavar='<0-1>',
-                          help=charmodel.Net.momentum_weight.__doc__)
-    rnn_args.add_argument('--log-file', default=None,
-                          help="log to this file")
-    rnn_args.add_argument('--enable-fp-exceptions', action='store_true',
-                          help="crash on bad floating point errors")
-    rnn_args.add_argument('--temporal-pgm-dump', action='store_true',
-                          help=("save images showing changing state "
-                                "of input/error vectors"))
-    rnn_args.add_argument('--periodic-pgm-dump',
-                          metavar='"({ih,ho,bi}{w,m,d,t})*"',
-                          help=("Periodically dump images of weights;"
-                                "string determines which"))
-    rnn_args.add_argument('--periodic-pgm-period', type=int, default=10000,
-                          help=("periodicity of periodic-pgm-dump"))
-    rnn_args.add_argument('--learning-method', type=int, default=4,
-                          help=("0: weighted, 2: simplified N., "
-                                "3: classical, 4: adagrad"))
-    rnn_args.add_argument('--activation', type=int, default=2,
-                          help=("1: ReLU, 2: ReSQRT, 3: ReLOG, 4: "
-                                "ReTANH, 5: clipped ReLU"))
-    rnn_args.add_argument('-d', '--bptt-depth', type=int, default=50,
-                          help="how far to backpropagate through time")
-    rnn_args.add_argument('--ignore-start', type=int, default=0,
-                          help="don't train on this many characters at start")
-    rnn_args.add_argument('-f', '--filename',
-                          help="save net here")
-    rnn_args.add_argument('--init-method', type=int,
-                          default=charmodel.INIT_FLAT,
-                          help="0: zeros, 1: flat, 2: fan-in, 3: runs")
-
+    arguments.add_common_args(add_arg)
+    arguments.add_rnn_args(rnn_arg)
     args = parser.parse_args()
-
-    if args.enable_fp_exceptions:
-        charmodel.enable_fp_exceptions()
 
     if args.rng_seed != -1:
         random.seed(args.rng_seed)
 
     if args.output_dir is None:
-        dir = make_directory_name(args.basename, args.lang, args.load)
+        dir = arguments.make_directory_name(args.basename, args.lang)
         args.output_dir = dir
 
-    if not args.load and args.auto_save:
-        args.save = os.path.join(args.output_dir, 'affinities.pickle')
+    if args.save is None:
+        args.save = os.path.join(args.output_dir,
+                                 '%s-affinities.pickle' % args.lang)
 
     try:
         os.makedirs(args.output_dir)
@@ -405,56 +56,33 @@ def main():
         else:
             raise
 
-    net_kwargs = {}
-    for k, v in vars(args).items():
-        if k in ("bptt_depth",
-                 "hidden_size",
-                 "rng_seed",
-                 "log_file",
-                 "verbose",
-                 "learn_rate",
-                 "temporal_pgm_dump",
-                 "periodic_pgm_dump",
-                 "periodic_pgm_period",
-                 "basename",
-                 "activation",
-                 "learning_method",
-                 "batch_size",
-                 "filename",
-                 "presynaptic_noise",
-                 "init_method",
-                 ):
-            net_kwargs[k] = v
+    cmd = ['./learn-corpus', args.lang]
+    vargs = vars(args)
+    for opt in learn_corpus_args:
+        k = opt.dest
+        if k not in vargs:
+            continue
+        v = vargs[k]
+        if v == opt.default:
+            continue
+        if opt.option_strings == []:
+            continue
+        cmd.append(opt.option_strings[0])
+        if opt.nargs != 0:
+            cmd.append(str(v))
 
-    net, texts, problems, v_text = get_net_and_corpus(args.input_dir,
-                                                      args.control_corpus,
-                                                      args.control_n,
-                                                      args.lang,
-                                                      args.reverse,
-                                                      args.validation_corpus,
-                                                      net_kwargs)
+    print ' '.join(cmd)
+    #sys.exit()
 
-    if args.load is None:
-        if args.epochs is None:
-            if args.stop_on_validation_reverse:
-                args.epochs = 100
-            else:
-                args.epochs = 1
-        train(net, texts, args.leakage, args.epochs,
-              args.leakage_decay, args.learn_rate_decay,
-              args.ignore_start,
-              v_text, args.stop_on_validation_reverse)
-        affinities, names, controls_texts, controls_models = \
-                    opine(net, texts, problems, args.ignore_start)
-    else:
-        affinities, names, controls_texts, controls_models = \
-                    load_opinions(args.load)
+    subprocess.check_call(cmd)
 
-    if args.save is not None:
-        save_opinions(args.save, affinities, names, control_texts,
-                      control_models)
+    cmd = ['./emit-opinions', args.lang,
+           '-o', args.output_dir,
+           '-r', args.rng_seed
+    ]
+    if args.verbose:
+        cmd.append('-v')
 
-    write_opinions(affinities, problems, control_means, control_models,
-                   args.output_dir)
+    subprocess.check_call(cmd)
 
 main()

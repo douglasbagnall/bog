@@ -1,7 +1,5 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-import subprocess
-import time
 import os
 import sys
 HERE = os.path.dirname(__file__)
@@ -9,7 +7,7 @@ sys.path.append(HERE)
 import argparse
 import random
 import numpy as np
-
+import arguments
 
 from meta import write_results, load_opinions
 
@@ -82,37 +80,12 @@ def write_opinions(all_affinities, problems, control_means, output_dir):
                       output_dir)
 
 
-def make_directory_name(basename, lang, reloading=False):
-    # make up a good name
-    here = os.path.dirname(__file__)
-    git_hash = subprocess.check_output(['git', '-C', here,
-                                        'rev-parse',
-                                        '--short', 'HEAD']).strip()
-    now = time.strftime('%Y-%m-%d+%H-%M-%S')
-    mod = '-'
-    if subprocess.call(['git', 'diff-files', '--quiet']):
-        mod = '+'
-    if reloading:
-        basename = 'reload-' + basename
-    return 'results/%s-%s-%s%s-%s' % (basename, lang, git_hash, mod, now)
-
-
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('lang', help="the language to look at")
-    parser.add_argument('-o', '--output-dir',
-                        help='write results here')
-
+    arguments.add_common_args(parser.add_argument, input_dir=False)
     parser.add_argument('--load',
                         help='load raw opinions from here')
-
-    parser.add_argument('-n', '--basename', default='pan',
-                        help="base filenames upon this")
-    parser.add_argument('-v', '--verbose', action='store_true',
-                        help="print more to stderr")
-    parser.add_argument('-r', '--rng-seed', type=int, default=-1,
-                        help="rng seed (-1 for auto)")
 
     args = parser.parse_args()
 
@@ -120,7 +93,8 @@ def main():
         random.seed(args.rng_seed)
 
     if args.output_dir is None:
-        dir = make_directory_name(args.basename, args.lang, args.load)
+        dir = arguments.make_directory_name(args.basename, args.lang,
+                                            args.load)
         args.output_dir = dir
 
     if args.load is None:
