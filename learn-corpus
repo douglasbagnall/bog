@@ -130,15 +130,21 @@ def train(net, texts, leakage, epochs, leakage_decay,
     for i in range(epochs):
         print ("starting epoch %d with learn-rate %s, "
                "leakage %s" % (i + 1, net.learn_rate, leakage))
+        start = time.time()
 
         for name, text in texts.items():
             net.train(text, name, leakage=leakage,
                       ignore_start=ignore_start)
         net.save()
+
+        middle = time.time()
+        print "training took %d:%02d" % divmod(middle - start, 60)
         ventropies = net.test(validation_text, ignore_start, 1)
         vstats = calc_ventropy_change(ventropies, prev_ventropies)
         prev_ventropies = ventropies
         print ("validation entropy %.3f±%.3f  diff % .3f±%.3f" % vstats)
+        end = time.time()
+        print "validation took %d:%02d" % divmod(end - middle, 60)
         if validation_reverse_length:
             v_history.append(vstats[2] < 0.0)
             v_history = v_history[-validation_reverse_length:]
