@@ -13,19 +13,7 @@ from operator import neg
 from munge import best_connections, p_to_affinities, data_to_clusters
 from munge import clipped_neg_exp, clipped_logistic, shuffle_array
 
-
-def load_clustering_json(fn):
-    f = open(fn)
-    raw_clusters = json.load(f)
-    f.close()
-    documents = set()
-    clusters = []
-    for cluster in raw_clusters:
-        cluster = frozenset(x['document'] for x in cluster)
-        clusters.append(cluster)
-        documents.update(cluster)
-
-    return documents, clusters
+from eval import load_clustering_json, load_ranking_json, calc_map
 
 
 def calc_fbcubed(truth, clusters):
@@ -100,6 +88,9 @@ def main():
     parser.add_argument('--delta', action='store_true',
                         help='changes in threshold')
 
+    parser.add_argument('-m', '--show-map', action='store_true',
+                        help='show mean average precision')
+
     parser.add_argument('--time', action='store_true',
                         help=('show no figure, print elapsed '
                               'time for first problem'))
@@ -128,8 +119,21 @@ def main():
             for cluster in clusters:
                 for doc in cluster:
                     true_clusters[doc] = cluster
+
+        if args.show_map:
+            true_ranking = {}
+            for pid in affinities:
+                fn = os.path.join(args.ground_truth_dir, pid, 'ranking.json')
+                true_ranking[pid] = load_clustering_json(fn)
+        else:
+            true_ranking = None
+    elif args.show_map:
+        print ("you need to supply --ground-truth-dir for --show-map")
+        sys.exit(1)
     else:
         true_clusters = None
+        true_ranking = None
+
 
     for tag, data in affinities.items():
         print tag
@@ -148,6 +152,11 @@ def main():
         ax = fig.add_subplot(111)
         ax.set_title(tag)
         ax.plot(thresholds, 'r.', linewidth=LINE_WIDTH, label='thresholds')
+
+        if true_ranking:
+            map = calc_map(data, true_ranking, documents)
+            print "MAP is %f" % map
+            ax.set_title("%s - %.5e" % (tag, map))
 
         if args.delta:
             deltas = np.diff(thresholds) * 10
