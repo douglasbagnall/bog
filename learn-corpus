@@ -229,7 +229,7 @@ def main():
 
     if args.save is None:
         if args.output_dir is None:
-            print "I don't no where to write anything!"
+            print "I don't know where to write anything!"
             sys.exit(1)
 
         args.save = os.path.join(args.output_dir,
