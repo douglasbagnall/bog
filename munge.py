@@ -1,25 +1,12 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-import subprocess
-import time
-import os
-import sys
-HERE = os.path.dirname(__file__)
-sys.path.append(HERE)
-import argparse
-import charmodel
 import random
-import json
 import numpy as np
-import errno
 
-import language
-
-from meta import write_results, makepath, save_opinions, load_opinions
+from meta import makepath
 
 
 def write_normalised_png(a, fn):
-    #print a
     print fn
     from PIL import Image
     hi = np.amax(a)
@@ -27,7 +14,7 @@ def write_normalised_png(a, fn):
     scale = 255.9 / (hi - lo)
     b = (a - lo) * scale
     c = np.array(b, dtype='uint8')
-    print "low %f high %f scale %f" % (lo, hi,  scale)
+    print "low %f high %f scale %f" % (lo, hi, scale)
     print "b min %f b max %f" % (np.amin(b), np.amax(b))
     print "c min %d b max %d" % (np.amin(c), np.amax(c))
     im = Image.fromarray(c)
@@ -72,7 +59,6 @@ def best_connections(rel_entropies):
 
 
 def links_to_clusters(links):
-    symlinks = links | links.T
     n = links.shape[0]
     clusters = [set([x]) for x in range(n)]
 
@@ -115,23 +101,18 @@ def p_to_affinities(input, samples=100):
 
         r = np.random.random(input.shape)
         p = input * scale
-        #print p
         links = r < p
         clusters = links_to_clusters(links)
-
-        #print "found %2d clusters at %g" % (len(clusters), scale)
 
         if len(clusters) == 1:
             # everything is connected, so the scale is too high
             # make sure we don't go higher.
             max_scale = (scale + max_scale) * 0.5
-            #print "adjusting max to %.3g after %.3g" %  (max_scale, scale)
             continue
 
         if len(clusters) == input.shape[0]:
-            #nothing is connected
+            # nothing is connected
             min_scale = (scale + 3 * min_scale) * 0.25
-            #print "adjusting MIN to %.3g after %.3g" %  (min_scale, scale)
             continue
 
         for c in clusters:

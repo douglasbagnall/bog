@@ -17,7 +17,7 @@ import language
 
 from meta import write_results, makepath, save_opinions, load_opinions
 
-from munge import clip_range, clipped_neg_exp, clipped_logistic
+from munge import clipped_neg_exp, clipped_logistic
 from munge import (write_normalised_png, best_connections,
                    p_to_affinities, links_to_clusters)
 
@@ -98,7 +98,6 @@ def affinities_to_clusters(affinities, threshold=None, n_min=None):
         # number of clusters.
         top = np.amax(affinities)
         bottom = np.amin(affinities)
-        #threshold = (top + bottom) * 0.5
         threshold = np.percentile(affinities, 98)
         print ("trying threshold of %.3g (min %.3g, max %.3g)" %
                (threshold, bottom, top))
@@ -224,7 +223,8 @@ def get_net_and_corpus(srcdir, controldir, control_n, lang,
 
         texts.update(control_texts)
 
-        print "using %d control texts; wanted %d" % (len(control_texts), control_n)
+        print "using %d control texts; wanted %d" % (len(control_texts),
+                                                     control_n)
 
     # remap into net enumeration encoding
     alphabet = charmodel.Alphabet(''.join(texts.values()), ignore_case=False,
@@ -411,7 +411,7 @@ def main():
                  "filename",
                  "presynaptic_noise",
                  "init_method",
-            ):
+                 ):
             net_kwargs[k] = v
 
     net, texts, problems, v_text = get_net_and_corpus(args.input_dir,

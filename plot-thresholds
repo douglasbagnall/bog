@@ -1,17 +1,17 @@
 #!/usr/bin/python
-import gzip, cPickle
+import cPickle
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib as mpl
-import sys, os
+import os
+import sys
 import argparse
-import csv
 import json
+import time
 
 from operator import neg
 
 from munge import best_connections, p_to_affinities, data_to_clusters
-from munge import clip_range, clipped_neg_exp, clipped_logistic
+from munge import clipped_neg_exp, clipped_logistic
 
 
 def load_clustering_json(fn):
@@ -27,12 +27,11 @@ def load_clustering_json(fn):
 
     return documents, clusters
 
+
 def calc_fbcubed(truth, clusters):
     r = 0.0
     p = 0.0
     n = 0.0
-    #print truth
-    #print clusters
     for cluster in clusters.values():
         n += len(cluster)
         for d in cluster:
@@ -46,13 +45,15 @@ def calc_fbcubed(truth, clusters):
     rr = n / r
     return 2.0 / (rp + rr)
 
+
 def symmetricise(x):
     return (x + x.T) * 0.5
+
 
 def norm2(x):
     return x - np.diagonal(x)
 
-LINE_WIDTH = 0.4
+LINE_WIDTH = 0.5
 
 STRATEGIES = {
     'raw_asymmetric': (False, (neg,)),
@@ -63,17 +64,20 @@ STRATEGIES = {
     'asymmetric': (True, (neg,)),
     'best_connections': (True, (neg, symmetricise, best_connections)),
     'montecarlo': (True, (symmetricise, clipped_neg_exp, p_to_affinities)),
-    'montecarlo-norm2': (True, (norm2, symmetricise, clipped_neg_exp, p_to_affinities)),
+    'montecarlo-norm2': (True, (norm2, symmetricise, clipped_neg_exp,
+                                p_to_affinities)),
     'montecarlo-asymmetric': (True, (clipped_neg_exp, p_to_affinities)),
     'montecarlo-raw': (False, (clipped_neg_exp, p_to_affinities)),
     'montecarlo-sigmoid-raw': (False, (clipped_logistic, p_to_affinities)),
-    'montecarlo-sigmoid': (True, (symmetricise, clipped_logistic, p_to_affinities)),
+    'montecarlo-sigmoid': (True, (symmetricise, clipped_logistic,
+                                  p_to_affinities)),
     'montecarlo-sigmoid-norm2': (True, (symmetricise, norm2, clipped_logistic,
                                         p_to_affinities)),
     'sigmoid': (True, (symmetricise, clipped_logistic,)),
     'sigmoid-asymmetric': (True, (clipped_logistic,)),
     'sigmoid-raw': (False, (clipped_logistic,)),
 }
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -166,7 +170,6 @@ def main():
                 prev_t = t
                 n_links.append(links * scale)
             ax.plot(n_links, 'y.', linewidth=LINE_WIDTH, label='n links')
-
 
         if true_clusters is not None:
             fbcubed = []
