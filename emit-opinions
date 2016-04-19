@@ -1,0 +1,135 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+import subprocess
+import time
+import os
+import sys
+HERE = os.path.dirname(__file__)
+sys.path.append(HERE)
+import argparse
+import random
+import numpy as np
+
+
+from meta import write_results, load_opinions
+
+from munge import clipped_neg_exp, clipped_logistic
+from munge import (write_normalised_png, best_connections,
+                   p_to_affinities, links_to_clusters)
+
+
+def affinities_to_clusters(affinities, threshold=None, n_min=None):
+    if threshold is None and n_min is None:
+        # lets try to find a threshold that will give us a middle
+        # number of clusters.
+        top = np.amax(affinities)
+        bottom = np.amin(affinities)
+        threshold = np.percentile(affinities, 98)
+        print ("trying threshold of %.3g (min %.3g, max %.3g)" %
+               (threshold, bottom, top))
+
+    if threshold is None:
+        for threshold in sorted(set(affinities)):
+            links = affinities > threshold
+            clusters = links_to_clusters(links)
+            if len(clusters) > n_min:
+                break
+    else:
+        links = affinities > threshold
+        clusters = links_to_clusters(links)
+
+    return clusters
+
+
+def write_opinions(all_affinities, problems, control_means, output_dir):
+    for pid, records in problems.items():
+        raw_affinities = all_affinities[pid]
+        norm_affinities = raw_affinities - control_means[pid]
+        diagonal = np.diagonal(norm_affinities)
+        norm2_affinities = norm_affinities - diagonal
+        sigmoid_affinities = clipped_logistic(norm_affinities)
+        open_affinities = clipped_neg_exp(norm_affinities)
+        transitive_affinities = p_to_affinities(open_affinities)
+        transitive_sigmoid_affinities = p_to_affinities(sigmoid_affinities)
+        symmetric_norm = norm2_affinities + norm2_affinities.T
+
+        connected_affinities = best_connections(symmetric_norm)
+
+        clusters = affinities_to_clusters(transitive_affinities)
+        sigmoid_clusters = affinities_to_clusters(sigmoid_affinities)
+        raw_clusters = affinities_to_clusters(-raw_affinities)
+        norm_clusters = affinities_to_clusters(-norm_affinities)
+        symmetric_clusters = affinities_to_clusters(-symmetric_norm)
+        norm2_clusters = affinities_to_clusters(-norm2_affinities)
+        connected_clusters = affinities_to_clusters(-connected_affinities)
+
+        fn = os.path.join(output_dir, '%s-%%s.png' % pid)
+        print fn
+        write_normalised_png(raw_affinities, fn % 'raw_affinities')
+        write_normalised_png(norm_affinities, fn % 'norm_affinities')
+        write_normalised_png(norm2_affinities, fn % 'norm2_affinities')
+        write_normalised_png(symmetric_norm, fn % 'symmetric_norm')
+        write_normalised_png(sigmoid_affinities, fn % 'sigmoid_affinities')
+        write_normalised_png(open_affinities, fn % 'open_affinities')
+        write_normalised_png(connected_affinities, fn % 'connected_affinities')
+        write_normalised_png(transitive_sigmoid_affinities,
+                             fn % 'transitive_sigmoid_affinities')
+        write_normalised_png(transitive_affinities,
+                             fn % 'transitive_affinities')
+
+        docnames = [x[0] for x in records]
+        write_results(docnames, pid, -symmetric_norm, symmetric_clusters,
+                      output_dir)
+
+
+def make_directory_name(basename, lang, reloading=False):
+    # make up a good name
+    here = os.path.dirname(__file__)
+    git_hash = subprocess.check_output(['git', '-C', here,
+                                        'rev-parse',
+                                        '--short', 'HEAD']).strip()
+    now = time.strftime('%Y-%m-%d+%H-%M-%S')
+    mod = '-'
+    if subprocess.call(['git', 'diff-files', '--quiet']):
+        mod = '+'
+    if reloading:
+        basename = 'reload-' + basename
+    return 'results/%s-%s-%s%s-%s' % (basename, lang, git_hash, mod, now)
+
+
+def main():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('lang', help="the language to look at")
+    parser.add_argument('-o', '--output-dir',
+                        help='write results here')
+
+    parser.add_argument('--load',
+                        help='load raw opinions from here')
+
+    parser.add_argument('-n', '--basename', default='pan',
+                        help="base filenames upon this")
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help="print more to stderr")
+    parser.add_argument('-r', '--rng-seed', type=int, default=-1,
+                        help="rng seed (-1 for auto)")
+
+    args = parser.parse_args()
+
+    if args.rng_seed != -1:
+        random.seed(args.rng_seed)
+
+    if args.output_dir is None:
+        dir = make_directory_name(args.basename, args.lang, args.load)
+        args.output_dir = dir
+
+    if args.load is None:
+        args.load = os.path.join(args.output_dir,
+                                 '%s-affinities.pickle' % args.lang)
+
+    opinions = load_opinions(args.load)
+
+    write_opinions(args.output_dir, *opinions)
+
+
+main()
