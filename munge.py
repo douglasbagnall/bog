@@ -135,9 +135,11 @@ def p_to_affinities(input, samples=100):
             continue
 
         for c in clusters:
+            z = np.zeros(totals.shape[0])
             c = np.array(sorted(c), dtype=int)
+            z[c] = 1
             for y in c:
-                totals[y, c] += 1
+                totals[y] += z
 
         runs -= 1
     totals *= 1.0 / (np.amax(totals) + 1e-10)
