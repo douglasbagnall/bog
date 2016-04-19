@@ -162,13 +162,15 @@ def main():
                 n = len(clusters)
                 n_clusters.append(n / float(data.shape[0]))
                 if n < prev_n:
-                    print "prev     %d, threshold %s" % (prev_n, prev_t)
-                    print "clusters %d, threshold %s" % (n, t)
+                    print "prev     %d, threshold %s %s" % (prev_n, prev_t,
+                                                            sorted(prev_clusters))
+                    print "clusters %d, threshold %s %s" % (n, t,
+                                                            sorted(clusters))
                 prev_n = n
                 prev_t = t
+                prev_clusters = clusters
 
             ax.plot(n_clusters, 'g.', linewidth=LINE_WIDTH, label='n clusters')
-
 
         if args.n_links:
             n_links = []
