@@ -87,26 +87,26 @@ def write_results(docnames, problem, affinities,
     write_clusters_json(clusters, docnames, d, problem, tag=tag)
     write_attractions_json(affinities, docnames, d, problem, tag=tag)
 
+# opinions should be like this:
+# problems, affinities, names, control_texts, control_models
+# problems:      dict (string => lists of lists)
+# affinities     dict (string => numpy array)
+# names          dict (string => list of string)
+# control_texts  dict (string => nx1 numpy array)
+# control_models dict (string => 1xn numpy array)
+#
+# All dicts should be the same size
 
-def save_opinions(dest, affinities, names, control_means):
+def save_opinions(dest, *opinions):
     makepath(dest)
     f = open(dest, 'w')
-    pickle.dump((affinities, names, control_means), f)
+    pickle.dump(opinions, f)
     f.close()
 
 
 def load_opinions(src):
     makepath(src)
     f = open(src)
-    payload = pickle.load(f)
+    opinions = pickle.load(f)
     f.close()
-    if isinstance(payload, dict):
-        # once upon a time, names weren't included.
-        return (payload, {},
-                {k:0 for k in payload})
-    elif len(payload) == 2:
-        affinities, names = payload
-        return (affinities, names,
-                {k:0 for k in affinities})
-
-    return payload
+    return opinions
