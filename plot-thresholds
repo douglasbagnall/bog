@@ -123,6 +123,8 @@ def main():
     control_texts = opinions['control_texts']
     control_models = opinions['control_models']
 
+    map_sum = 0.0
+
     if args.time:
         start_time = time.time()
 
@@ -149,10 +151,15 @@ def main():
         true_clusters = None
         true_ranking = None
 
+    n_problems = len(affinities)
+
     for tag, data in affinities.items():
         print tag
+        c_texts = control_texts[tag]
+        c_models = control_models[tag]
+
         norm = globals()['_norm_' + args.normalise]
-        data = norm(data, control_texts, control_models)
+        data = norm(data, c_texts, c_models)
 
         functions = STRATEGIES[args.strategy]
         for func in functions:
@@ -169,9 +176,17 @@ def main():
         ax.plot(thresholds, 'r.', linewidth=LINE_WIDTH, label='thresholds')
 
         if true_ranking:
-            map = calc_map(data, true_ranking, documents)
+            documents = names[tag]
+            links = []
+            n = data.shape[0]
+            for i in range(n):
+                for j in range(i + 1, n):
+                    links.append((data[i, j], (documents[i], documents[j])))
+
+            map = calc_map(links, true_ranking[tag], documents)
             print "MAP is %f" % map
-            ax.set_title("%s - %.5e" % (tag, map))
+            ax.set_title("%s: MAP %.3g" % (tag, map))
+            map_sum += map
 
         if args.delta:
             deltas = np.diff(thresholds) * 10
@@ -242,5 +257,8 @@ def main():
             print "%s %s took %.2f seconds" % (tag, data.shape, elapsed)
             sys.exit()
         plt.show()
+
+    if true_ranking:
+        print "average MAP is       %f" % (map_sum / n_problems)
 
 main()

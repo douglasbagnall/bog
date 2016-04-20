@@ -69,6 +69,7 @@ def avg_precision(d, n, links, truth):
 
 
 def calc_map(links, truth, documents):
+    links = sorted(links, reverse=True)
     true_links = set(x[1] for x in truth)
     score = 0.0
     for d in documents:
