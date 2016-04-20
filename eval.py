@@ -75,3 +75,31 @@ def calc_map(links, truth, documents):
         score += avg_precision(d, len(documents), links, true_links)
 
     return score / len(documents)
+
+
+def calc_map2(links, truth, documents):
+    true_links = set(x[1] for x in truth)
+
+    records = {}
+    for d in documents:
+        records[d] = [0.0, 0.0, 0.0, 0.0]
+        links = set(x for x in true_links if d in x)
+        records[d].append(links)
+        records[d].append(len(links))
+
+    for _, pair in links:
+        for d in pair:
+            record = records[d]
+            precision, count, correct, links, n_links = record
+            if correct == n_links:
+                continue
+            count += 1.0
+            if pair in links:
+                correct += 1.0
+            precision += correct / count
+            records[d] = [precision, count, correct, links, n_links]
+
+    for d in documents:
+        score += records[d][0]
+
+    return score / len(documents)
