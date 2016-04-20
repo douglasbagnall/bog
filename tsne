@@ -1,19 +1,20 @@
 #!/usr/bin/python
-import gzip, cPickle
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import sys, os
 import argparse
-import csv
 import json
 
+from meta import load_opinions
 from fasttsne import fast_tsne
 
 mpl.rcParams['savefig.directory'] = 'results/images'
 
+
 def stddev(x, order, axis):
     return np.std(x, axis=axis)
+
 
 def norm_norm_norm(entropies):
     if True:
@@ -75,15 +76,11 @@ def main():
 
     args = parser.parse_args()
 
-    f = open(args.input)
-    data = cPickle.load(f)
-    f.close()
-    try:
-        affinities, names, control_means = data
-    except:
-        affinities = data
-        names = None
-        print >> sys.stderr, "Point labels are unknown"
+    opinions = load_opinions(args.input)
+    affinities = opinions['affinities']
+    names = opinions['names']
+    control_texts = opinions['control_texts']
+    control_models = opinions['control_models']
 
     if args.ground_truth_dir and names is not None:
         clusters = {}
@@ -113,7 +110,7 @@ def main():
 
     for tag, data in affinities.items():
         print tag
-        data -= control_means[tag]
+        data -= control_texts[tag]
         data -= np.diagonal(data)
         #data = data.T
         data = np.concatenate((data, data.T), axis=1)

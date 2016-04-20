@@ -9,6 +9,7 @@ import time
 
 from operator import neg
 
+from meta import load_opinions
 from munge import best_connections, p_to_affinities, data_to_clusters
 from munge import clipped_neg_exp, clipped_logistic, shuffle_array
 
@@ -116,14 +117,11 @@ def main():
 
     args = parser.parse_args()
 
-    f = open(args.input)
-    data = cPickle.load(f)
-    f.close()
-    try:
-        affinities, names, control_texts, control_models = data
-    except ValueError:
-        affinities, names, control_texts = data
-        control_models = None
+    opinions = load_opinions(args.input)
+    affinities = opinions['affinities']
+    names = opinions['names']
+    control_texts = opinions['control_texts']
+    control_models = opinions['control_models']
 
     if args.time:
         start_time = time.time()

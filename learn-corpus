@@ -89,7 +89,12 @@ def entropies_to_opinions(entropy_cache, problems):
         all_control_texts[pid] = np.array(control_texts)
         all_control_models[pid] = np.array(control_models)
 
-    return affinities, names, all_control_texts, all_control_models
+    return {
+        'affinities': affinities,
+        'names': names,
+        'control_texts': all_control_texts,
+        'control_models': all_control_models
+    }
 
 
 def opine(net, texts, problems, ignore_start):

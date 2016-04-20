@@ -98,43 +98,50 @@ def write_results(docnames, problem, affinities,
 # All dicts should be the same size
 
 def validate_opinions(opinions):
-    h, w = opinions[1].shape
-    assert(w == h)
-    expected = [
-        (list, list,),
-        (np.ndarray, (w, h)),
-        (list, str,),
-        (np.ndarray, (1, h)),
-        (np.ndarray, (w, 1)),
-    ]
-    keys = set(opinions[0])
-    for d, expected in zip(opinions, expected):
-        assert(set(d) == keys)
+    expected_types = {
+        'problems': (list, tuple,),
+        'affinities': (np.ndarray, 'square'),
+        'names': (tuple, basestring,),
+        'control_texts': (np.ndarray, 'tall'),
+        'control_models': (np.ndarray, 'long'),
+    }
+    keys = set(opinions['names'].keys())
+    for k, d in opinions.items():
+        expected = expected_types[k]
+        assert(set(d) == keys), "set(d) != keys"
         e0 = expected[0]
         for v in d.values():
-            assert(isinstance(v, e0))
-        if e0 is list:
+            assert(isinstance(v, e0)), "values is not %s" % (e0,)
+        if e0 in (list, tuple):
             e1 = expected[1]
             for v in d.values():
-                assert(isinstance(v[0], e1))
+                assert(isinstance(v[0], e1)), "values[0] is not %s" % (e1,)
         elif e0 is np.ndarray:
             shape = expected[1]
-            for v in d.values():
-                assert(v.shape == shape)
+            for s in set(v.shape for v in d.values()):
+                if shape == 'long':
+                    assert len(s) == 1, "should be 1d vector, not %s" % (s,)
+                elif shape == 'tall':
+                    assert s[1] == 1, "should have width 1, not %d" % s[1]
+                elif shape == 'square':
+                    assert s[0] == s[1], "should be square, not %s" % (s,)
 
 
-def save_opinions(dest, *opinions):
-    validate_opinions(opinions)
+def save_opinions(dest, **opinions):
+    try:
+        validate_opinions(opinions)
+    except AssertionError, e:
+        print e
     makepath(dest)
     f = open(dest, 'w')
-    pickle.dump(opinions, f)
+    cPickle.dump(opinions, f)
     f.close()
 
 
 def load_opinions(src):
     makepath(src)
     f = open(src)
-    opinions = pickle.load(f)
+    opinions = cPickle.load(f)
     f.close()
     validate_opinions(opinions)
     return opinions
