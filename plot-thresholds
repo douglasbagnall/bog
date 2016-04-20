@@ -118,6 +118,9 @@ def main():
     parser.add_argument('--no-plot', action='store_true',
                         help="don't actually plot")
 
+    parser.add_argument('--no-fbcubed', action='store_true',
+                        help="don't do fbcubed even with ground truth")
+
     args = parser.parse_args()
 
     opinions = load_opinions(args.input)
@@ -126,33 +129,33 @@ def main():
     control_texts = opinions['control_texts']
     control_models = opinions['control_models']
 
+
     map_sum = 0.0
+    true_clusters = None
+    true_ranking = None
 
     if args.time:
         start_time = time.time()
 
     if args.ground_truth_dir:
-        true_clusters = {}
-        for pid in affinities:
-            fn = os.path.join(args.ground_truth_dir, pid, 'clustering.json')
-            documents, clusters = load_clustering_json(fn)
-            for cluster in clusters:
-                for doc in cluster:
-                    true_clusters[doc] = cluster
+        if not args.no_fbcubed:
+            true_clusters = {}
+            for pid in affinities:
+                fn = os.path.join(args.ground_truth_dir, pid, 'clustering.json')
+                documents, clusters = load_clustering_json(fn)
+                for cluster in clusters:
+                    for doc in cluster:
+                        true_clusters[doc] = cluster
 
         if args.show_map:
             true_ranking = {}
             for pid in affinities:
                 fn = os.path.join(args.ground_truth_dir, pid, 'ranking.json')
                 true_ranking[pid] = load_ranking_json(fn)
-        else:
-            true_ranking = None
+
     elif args.show_map:
         print ("you need to supply --ground-truth-dir for --show-map")
         sys.exit(1)
-    else:
-        true_clusters = None
-        true_ranking = None
 
     n_problems = len(affinities)
 
