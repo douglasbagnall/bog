@@ -96,7 +96,7 @@ def opine(net, texts, problems, ignore_start):
     print "beginning opine"
     start = time.time()
     entropy_cache = full_entropy_matrix(net, texts, ignore_start)
-    print "got raw entropies in %.1fs" % (time.time() - start)
+    print "got raw entropies in %d:%02d" % divmod(time.time() - start, 60)
     return entropies_to_opinions(entropy_cache, problems)
 
 
