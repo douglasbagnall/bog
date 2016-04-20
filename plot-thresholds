@@ -38,7 +38,7 @@ def symmetricise(x):
     return (x + x.T) * 0.5
 
 
-def norm2(x):
+def norm_diagonal(x):
     return x - np.diagonal(x)
 
 
@@ -63,18 +63,18 @@ LINE_WIDTH = 0.5
 STRATEGIES = {
     'asymmetric': (neg,),
     'simple': (neg, symmetricise),
-    'norm2': (neg, norm2),
-    'norm2-symmetric': (neg, norm2, symmetricise),
+    'diagonal': (neg, norm_diagonal),
+    'diagonal-symmetric': (neg, norm_diagonal, symmetricise),
     'best_connections': (neg, symmetricise, best_connections),
     'montecarlo': (symmetricise, clipped_neg_exp, p_to_affinities),
-    'montecarlo-norm2': (norm2, symmetricise, clipped_neg_exp,
-                         p_to_affinities),
+    'montecarlo-diagonal': (norm_diagonal, symmetricise, clipped_neg_exp,
+                            p_to_affinities),
     'montecarlo-asymmetric': (clipped_neg_exp, p_to_affinities),
     'montecarlo-sigmoid-asymmetric': (clipped_logistic, p_to_affinities),
     'montecarlo-sigmoid': (symmetricise, clipped_logistic,
                            p_to_affinities),
-    'montecarlo-sigmoid-norm2': (symmetricise, norm2, clipped_logistic,
-                                 p_to_affinities),
+    'montecarlo-sigmoid-diagonal': (symmetricise, norm_diagonal,
+                                    clipped_logistic, p_to_affinities),
     'sigmoid': (symmetricise, clipped_logistic,),
     'sigmoid-asymmetric': (clipped_logistic,),
 }
@@ -151,7 +151,7 @@ def main():
 
     for tag, data in affinities.items():
         print tag
-        norm = globals.get('_norm_' + args.normalise)
+        norm = globals()['_norm_' + args.normalise]
         data = norm(data, control_texts, control_models)
 
         functions = STRATEGIES[args.strategy]
@@ -181,15 +181,16 @@ def main():
             n_clusters = []
             prev_n = -1e99
             prev_t = -1e99
+            prev_clusters = None
             for t in thresholds:
                 clusters = data_to_clusters(data, t)
                 n = len(clusters)
                 n_clusters.append(n / float(data.shape[0]))
                 if n < prev_n:
-                    print "prev     %d, threshold %s %s" % (prev_n, prev_t,
-                                                            sorted(prev_clusters))
-                    print "clusters %d, threshold %s %s" % (n, t,
-                                                            sorted(clusters))
+                    print ("prev     %d, threshold %s %s" %
+                           (prev_n, prev_t, sorted(prev_clusters)))
+                    print ("clusters %d, threshold %s %s" %
+                           (n, t, sorted(clusters)))
                 prev_n = n
                 prev_t = t
                 prev_clusters = clusters
@@ -232,7 +233,6 @@ def main():
             print "FBCUBED best: %.3f at %d/%d" % (best_fbcubed,
                                                    best_fbcubed_c,
                                                    data.shape[0])
-
 
         plt.legend(loc='center left', numpoints=1, frameon=False,
                    borderpad=0)
