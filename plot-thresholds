@@ -129,7 +129,8 @@ def main():
     control_texts = opinions['control_texts']
     control_models = opinions['control_models']
 
-
+    fbcubed_best_sum = 0.0
+    fbcubed_c_sum = 0.0
     map_sum = 0.0
     true_clusters = None
     true_ranking = None
@@ -260,6 +261,8 @@ def main():
             print "FBCUBED best: %.3f at %d/%d" % (best_fbcubed,
                                                    best_fbcubed_c,
                                                    data.shape[0])
+            fbcubed_best_sum += best_fbcubed
+            fbcubed_c_sum += (best_fbcubed_c / float(data.shape[0]))
 
         if args.time:
             elapsed = time.time() - start_time
@@ -273,5 +276,10 @@ def main():
 
     if true_ranking:
         print "average MAP is       %f" % (map_sum / n_problems)
+
+    if true_clusters is not None:
+        print ("average best fbcubed %f at %.1f%%" %
+               (fbcubed_best_sum / n_problems,
+                100.0 * fbcubed_c_sum / n_problems))
 
 main()
