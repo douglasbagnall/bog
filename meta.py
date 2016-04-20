@@ -2,7 +2,7 @@ import json
 import os
 import errno
 import numpy as np
-import pickle
+import cPickle
 
 
 def read_info_json(d):
@@ -83,7 +83,7 @@ def write_attractions_json(attractions, docnames, output_dir, problem,
 
 def write_results(docnames, problem, affinities,
                   clusters, d, tag=None):
-    print len(clusters), clusters
+    #print len(clusters), clusters
     write_clusters_json(clusters, docnames, d, problem, tag=tag)
     write_attractions_json(affinities, docnames, d, problem, tag=tag)
 

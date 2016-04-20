@@ -283,6 +283,6 @@ def main():
           v_text, args.stop_on_validation_reverse)
 
     opinion = opine(net, texts, problems, args.ignore_start)
-    save_opinions(args.save, problems, *opinion)
+    save_opinions(args.save, problems=problems, **opinion)
 
 main()

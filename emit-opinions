@@ -20,11 +20,7 @@ def affinities_to_clusters(affinities, threshold=None, n_min=None):
     if threshold is None and n_min is None:
         # lets try to find a threshold that will give us a middle
         # number of clusters.
-        top = np.amax(affinities)
-        bottom = np.amin(affinities)
         threshold = np.percentile(affinities, 98)
-        print ("trying threshold of %.3g (min %.3g, max %.3g)" %
-               (threshold, bottom, top))
 
     if threshold is None:
         for threshold in sorted(set(affinities)):
@@ -54,15 +50,14 @@ def write_opinions(all_affinities, problems, control_means, output_dir):
         connected_affinities = best_connections(symmetric_norm)
 
         clusters = affinities_to_clusters(transitive_affinities)
-        sigmoid_clusters = affinities_to_clusters(sigmoid_affinities)
-        raw_clusters = affinities_to_clusters(-raw_affinities)
-        norm_clusters = affinities_to_clusters(-norm_affinities)
-        symmetric_clusters = affinities_to_clusters(-symmetric_norm)
-        norm2_clusters = affinities_to_clusters(-norm2_affinities)
-        connected_clusters = affinities_to_clusters(-connected_affinities)
+        #sigmoid_clusters = affinities_to_clusters(sigmoid_affinities)
+        #raw_clusters = affinities_to_clusters(-raw_affinities)
+        #norm_clusters = affinities_to_clusters(-norm_affinities)
+        #symmetric_clusters = affinities_to_clusters(-symmetric_norm)
+        #norm2_clusters = affinities_to_clusters(-norm2_affinities)
+        #connected_clusters = affinities_to_clusters(-connected_affinities)
 
         fn = os.path.join(output_dir, '%s-%%s.png' % pid)
-        print fn
         write_normalised_png(raw_affinities, fn % 'raw_affinities')
         write_normalised_png(norm_affinities, fn % 'norm_affinities')
         write_normalised_png(norm2_affinities, fn % 'norm2_affinities')
@@ -76,7 +71,7 @@ def write_opinions(all_affinities, problems, control_means, output_dir):
                              fn % 'transitive_affinities')
 
         docnames = [x[0] for x in records]
-        write_results(docnames, pid, -symmetric_norm, symmetric_clusters,
+        write_results(docnames, pid, -symmetric_norm, clusters,
                       output_dir)
 
 

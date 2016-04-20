@@ -6,17 +6,18 @@ import numpy as np
 from meta import makepath
 
 
-def write_normalised_png(a, fn):
-    print fn
+def write_normalised_png(a, fn, verbose=False):
     from PIL import Image
     hi = np.amax(a)
     lo = np.amin(a)
     scale = 255.9 / (hi - lo)
     b = (a - lo) * scale
     c = np.array(b, dtype='uint8')
-    print "low %f high %f scale %f" % (lo, hi, scale)
-    print "b min %f b max %f" % (np.amin(b), np.amax(b))
-    print "c min %d b max %d" % (np.amin(c), np.amax(c))
+    if verbose:
+        print fn
+        print "low %f high %f scale %f" % (lo, hi, scale)
+        print "b min %f b max %f" % (np.amin(b), np.amax(b))
+        print "c min %d b max %d" % (np.amin(c), np.amax(c))
     im = Image.fromarray(c)
     makepath(fn)
     im.save(fn)
@@ -41,7 +42,6 @@ def clipped_logistic(raw_affinities):
 def best_connections(rel_entropies):
     entropies = np.copy(rel_entropies)
     n = rel_entropies.shape[0]
-    print entropies.shape
     for text in range(n):
         for model in range(n):
             row = rel_entropies[text]
@@ -51,9 +51,6 @@ def best_connections(rel_entropies):
                 if (row[m2] < best and
                     row[m2] + rel_entropies[m2, model] < best):
                     best = row[m2] + rel_entropies[m2, model]
-                    print ("%2d->%-2d direct %.5f; via %2d %.5f, rev %.5f" %
-                           (text, model, direct, m2, best,
-                            rel_entropies[model, text]))
                     entropies[text, model] = best
     return entropies
 
