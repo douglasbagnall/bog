@@ -115,6 +115,9 @@ def main():
     parser.add_argument('--shuffle', action='store_true',
                         help="randomly shuffle results (for baseline)")
 
+    parser.add_argument('--no-plot', action='store_true',
+                        help="don't actually plot")
+
     args = parser.parse_args()
 
     opinions = load_opinions(args.input)
@@ -173,7 +176,13 @@ def main():
         fig = plt.figure(figsize=(12, 10))
         ax = fig.add_subplot(111)
         ax.set_title(tag)
-        ax.plot(thresholds, 'r.', linewidth=LINE_WIDTH, label='thresholds')
+        if args.no_plot:
+            def plot(*args, **kwargs):
+                pass
+        else:
+            plot = ax.plot
+
+        plot(thresholds, 'r.', linewidth=LINE_WIDTH, label='thresholds')
 
         if true_ranking:
             documents = names[tag]
@@ -190,7 +199,7 @@ def main():
 
         if args.delta:
             deltas = np.diff(thresholds) * 10
-            ax.plot(deltas, 'c.', linewidth=LINE_WIDTH, label='delta')
+            plot(deltas, 'c.', linewidth=LINE_WIDTH, label='delta')
 
         if args.n_clusters:
             n_clusters = []
@@ -210,7 +219,7 @@ def main():
                 prev_t = t
                 prev_clusters = clusters
 
-            ax.plot(n_clusters, 'g.', linewidth=LINE_WIDTH, label='n clusters')
+            plot(n_clusters, 'g.', linewidth=LINE_WIDTH, label='n clusters')
 
         if args.n_links:
             n_links = []
@@ -226,7 +235,7 @@ def main():
                 prev_links = links
                 prev_t = t
                 n_links.append(links * scale)
-            ax.plot(n_links, 'y.', linewidth=LINE_WIDTH, label='n links')
+            plot(n_links, 'y.', linewidth=LINE_WIDTH, label='n links')
 
         if true_clusters is not None:
             fbcubed = []
@@ -244,19 +253,20 @@ def main():
                         best_fbcubed_c = len(clusters)
                 fbcubed.append(score)
 
-            ax.plot(fbcubed, 'b.', linewidth=LINE_WIDTH, label='fbcubed')
+            plot(fbcubed, 'b.', linewidth=LINE_WIDTH, label='fbcubed')
             print "FBCUBED best: %.3f at %d/%d" % (best_fbcubed,
                                                    best_fbcubed_c,
                                                    data.shape[0])
-
-        plt.legend(loc='center left', numpoints=1, frameon=False,
-                   borderpad=0)
 
         if args.time:
             elapsed = time.time() - start_time
             print "%s %s took %.2f seconds" % (tag, data.shape, elapsed)
             sys.exit()
-        plt.show()
+
+        if not args.no_plot:
+            plt.legend(loc='center left', numpoints=1, frameon=False,
+                       borderpad=0)
+            plt.show()
 
     if true_ranking:
         print "average MAP is       %f" % (map_sum / n_problems)
