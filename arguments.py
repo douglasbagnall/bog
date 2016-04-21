@@ -82,6 +82,9 @@ def add_rnn_args(add_arg):
 
     add_arg('--save', help='save raw opinions here')
 
+    add_arg('--opinion-every', type=int,
+            help="write an opinion at this interval of epochs")
+
 
 def add_common_args(add_arg, input_dir=True):
     add_arg('lang', help="the language to look at")

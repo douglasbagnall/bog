@@ -128,7 +128,7 @@ def calc_ventropy_change(ventropies, prev_ventropies):
 
 def train(net, texts, leakage, epochs, leakage_decay,
           learn_rate_decay, ignore_start, validation_text,
-          validation_reverse_length):
+          validation_reverse_length, opinion_args):
 
     prev_ventropies = net.test(validation_text, ignore_start, 1)
     v_history = []
@@ -144,6 +144,7 @@ def train(net, texts, leakage, epochs, leakage_decay,
 
         middle = time.time()
         print "training took %d:%02d" % divmod(middle - start, 60)
+
         ventropies = net.test(validation_text, ignore_start, 1)
         vstats = calc_ventropy_change(ventropies, prev_ventropies)
         prev_ventropies = ventropies
@@ -157,6 +158,16 @@ def train(net, texts, leakage, epochs, leakage_decay,
                 print ("stopping because validation has been getting worse "
                        "for %d epochs" % validation_reverse_length)
                 return
+
+        if opinion_args is not None:
+            interval, opinion_dest, problems = opinion_args
+            if (i + 1) % interval == 0:
+                print "starting periodic opinion"
+                start = time.time()
+                fn = opinion_dest % i
+                opinion = opine(net, texts, problems, ignore_start)
+                save_opinions(fn, problems=problems, **opinion)
+                print "opinion took %d:%02d" % divmod(time.time() - start, 60)
 
         leakage *= leakage_decay
         net.learn_rate *= learn_rate_decay
@@ -282,10 +293,16 @@ def main():
                                                       args.validation_corpus,
                                                       net_kwargs)
 
-    train(net, texts, args.leakage, args.epochs,
-          args.leakage_decay, args.learn_rate_decay,
-          args.ignore_start,
-          v_text, args.stop_on_validation_reverse)
+    if args.opinion_every:
+        opinion_args = (args.opinion_every,
+                        args.save + '-%d',
+                        problems)
+    else:
+        opinion_args = None
+
+    train(net, texts, args.leakage, args.epochs, args.leakage_decay,
+          args.learn_rate_decay, args.ignore_start, v_text,
+          args.stop_on_validation_reverse, opinion_args)
 
     opinion = opine(net, texts, problems, args.ignore_start)
     save_opinions(args.save, problems=problems, **opinion)
