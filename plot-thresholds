@@ -16,6 +16,37 @@ from munge import clipped_neg_exp, clipped_logistic, shuffle_array
 from eval import load_clustering_json, load_ranking_json, calc_map
 
 
+def load_all_opinions(filenames):
+    opinions = load_opinions(filenames[0])
+    affinities = opinions['affinities']
+    names = opinions['names']
+    control_texts = opinions['control_texts']
+    control_models = opinions['control_models']
+
+    if len(filenames) > 1:
+        for fn in filenames:
+            opinions = load_opinions(fn)
+            names2 = opinions['names']
+            control_texts2 = opinions['control_texts']
+            control_models2 = opinions['control_models']
+            if (names2 != names):
+                raise ValueError("Multiple input files are not compatible")
+
+            affinities2 = opinions['affinities']
+            for k in affinities:
+                affinities[k] += affinities2[k]
+                control_texts[k] += control_texts2[k]
+                control_models[k] += control_models2[k]
+
+        for k in affinities:
+            scale = 1.0 / len(filenames)
+            affinities[k] *= scale
+            control_texts[k] *= scale
+            control_models[k] *= scale
+
+    return affinities, names, control_texts, control_models
+
+
 def calc_fbcubed(truth, clusters):
     r = 0.0
     p = 0.0
@@ -79,8 +110,8 @@ STRATEGIES = {
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-i', '--input',
-                        help='input filename (pickle)')
+    parser.add_argument('-i', '--input', action='append',
+                        help='input filename[s] (pickle)')
 
     parser.add_argument('-g', '--ground-truth-dir',
                         help='cluster ground truth (json)')
@@ -120,11 +151,7 @@ def main():
 
     args = parser.parse_args()
 
-    opinions = load_opinions(args.input)
-    affinities = opinions['affinities']
-    names = opinions['names']
-    control_texts = opinions['control_texts']
-    control_models = opinions['control_models']
+    affinities, names, control_texts, control_models = load_all_opinions(args.input)
 
     fbcubed_best_sum = 0.0
     fbcubed_c_sum = 0.0
