@@ -10,7 +10,7 @@ import time
 from operator import neg
 
 from meta import load_opinions
-from munge import best_connections, p_to_affinities, data_to_clusters
+from munge import p_to_affinities, data_to_clusters
 from munge import clipped_neg_exp, clipped_logistic, shuffle_array
 
 from eval import load_clustering_json, load_ranking_json, calc_map
@@ -94,9 +94,9 @@ LINE_WIDTH = 0.5
 STRATEGIES = {
     'asymmetric': (neg,),
     'simple': (neg, symmetricise),
+    'transpose': (np.transpose, neg),
     'diagonal': (neg, norm_diagonal),
     'diagonal-symmetric': (neg, norm_diagonal, symmetricise),
-    'best_connections': (neg, symmetricise, best_connections),
     'montecarlo': (symmetricise, clipped_neg_exp, p_to_affinities),
     'montecarlo-diagonal': (norm_diagonal, symmetricise, clipped_neg_exp,
                             p_to_affinities),
@@ -104,6 +104,7 @@ STRATEGIES = {
     'montecarlo-sigmoid': (symmetricise, clipped_logistic,
                            p_to_affinities),
     'sigmoid': (neg, symmetricise, clipped_logistic,),
+    'transpose-sigmoid': (np.transpose, neg, clipped_logistic,),
     'sigmoid-asymmetric': (neg, clipped_logistic,),
 }
 

@@ -12,7 +12,7 @@ import arguments
 from meta import write_results, load_opinions
 
 from munge import clipped_neg_exp, clipped_logistic
-from munge import (write_normalised_png, best_connections,
+from munge import (write_normalised_png,
                    p_to_affinities, links_to_clusters)
 
 
@@ -51,15 +51,12 @@ def write_opinions(output_dir, problems, affinities, names,
         transitive_sigmoid_affinities = p_to_affinities(sigmoid_affinities)
         symmetric_norm = norm2_affinities + norm2_affinities.T
 
-        connected_affinities = best_connections(symmetric_norm)
-
         clusters = affinities_to_clusters(transitive_affinities)
         #sigmoid_clusters = affinities_to_clusters(sigmoid_affinities)
         #raw_clusters = affinities_to_clusters(-raw_affinities)
         #norm_clusters = affinities_to_clusters(-norm_affinities)
         #symmetric_clusters = affinities_to_clusters(-symmetric_norm)
         #norm2_clusters = affinities_to_clusters(-norm2_affinities)
-        #connected_clusters = affinities_to_clusters(-connected_affinities)
 
         fn = os.path.join(output_dir, '%s-%%s.png' % pid)
         write_normalised_png(raw_affinities, fn % 'raw_affinities')
@@ -71,7 +68,6 @@ def write_opinions(output_dir, problems, affinities, names,
         write_normalised_png(symmetric_norm, fn % 'symmetric_norm')
         write_normalised_png(sigmoid_affinities, fn % 'sigmoid_affinities')
         write_normalised_png(open_affinities, fn % 'open_affinities')
-        write_normalised_png(connected_affinities, fn % 'connected_affinities')
         write_normalised_png(transitive_sigmoid_affinities,
                              fn % 'transitive_sigmoid_affinities')
         write_normalised_png(transitive_affinities,

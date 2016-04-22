@@ -39,22 +39,6 @@ def clipped_logistic(raw_affinities):
     return 1.0 / (1.0 + np.exp(x * -3.0))
 
 
-def best_connections(rel_entropies):
-    entropies = np.copy(rel_entropies)
-    n = rel_entropies.shape[0]
-    for text in range(n):
-        for model in range(n):
-            row = rel_entropies[text]
-            direct = row[model]
-            best = direct
-            for m2 in range(n):
-                if (row[m2] < best and
-                    row[m2] + rel_entropies[m2, model] < best):
-                    best = row[m2] + rel_entropies[m2, model]
-                    entropies[text, model] = best
-    return entropies
-
-
 def links_to_clusters(links):
     n = links.shape[0]
     clusters = [set([x]) for x in range(n)]
