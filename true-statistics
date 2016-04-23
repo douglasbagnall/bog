@@ -1,0 +1,28 @@
+#!/usr/bin/python
+
+from meta import read_info_json
+from eval import load_ground_truths
+from language import TRAINING_CORPUS
+from colour import print_GREEN
+
+
+def main():
+    info = read_info_json(TRAINING_CORPUS)
+    truths = load_ground_truths("%s/truth" % TRAINING_CORPUS)
+
+    for pid, lang, genre in info:
+        print_GREEN("%s (%s)" % (pid, lang))
+        truth = truths[pid]
+        print "%d documents" % len(truth['documents'])
+        print "%d links" % len(truth['ranking'])
+        clusters = truth['clustering']
+        print "%d clusters > 1" % len([x for x in clusters if len(x) > 1])
+        counts = {}
+        for c in clusters:
+            lc = len(c)
+            counts[lc] = counts.get(lc, 0) + 1
+        for lc, size in sorted(counts.items(), reverse=True, key=lambda x:x[1]):
+            print "%2d clusters of size %d" % (lc, size)
+        print
+
+main()
