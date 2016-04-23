@@ -125,6 +125,9 @@ def main():
                         choices=STRATEGIES.keys(),
                         help='how to process the affinities')
 
+    parser.add_argument('--list-strategies', action='store_true',
+                        help='print valid strategies and exit')
+
     parser.add_argument('--n-clusters', action='store_true',
                         help='plot the number of clusters at each threshold')
 
@@ -151,6 +154,11 @@ def main():
                         help="don't do fbcubed even with ground truth")
 
     args = parser.parse_args()
+
+    if args.list_strategies:
+        for k in STRATEGIES:
+            print k
+        sys.exit()
 
     affinities, names, control_texts, control_models = load_all_opinions(args.input)
 
