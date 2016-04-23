@@ -51,8 +51,7 @@ def add_rnn_args(add_arg):
                   "3: classical, 4: adagrad"))
 
     add_arg('--activation', type=int, default=2,
-            help=("1: ReLU, 2: ReSQRT, 3: ReLOG, 4: "
-                  "ReTANH, 5: clipped ReLU"))
+            help=("1: ReLU, 2: ReSQRT, 5: clipped ReLU"))
 
     add_arg('-d', '--bptt-depth', type=int, default=50,
             help="how far to backpropagate through time")
