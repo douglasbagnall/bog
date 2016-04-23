@@ -69,6 +69,11 @@ def symmetricise(x):
     return (x + x.T) * 0.5
 
 
+def rmul(n):
+    def mul(x):
+        return x * n
+    return mul
+
 def norm_diagonal(x):
     return x - np.diagonal(x)
 
@@ -97,11 +102,13 @@ STRATEGIES = {
     'transpose': (np.transpose, neg),
     'diagonal': (neg, norm_diagonal),
     'diagonal-symmetric': (neg, norm_diagonal, symmetricise),
-    'montecarlo': (symmetricise, clipped_neg_exp, p_to_affinities),
-    'montecarlo-diagonal': (norm_diagonal, symmetricise, clipped_neg_exp,
+    'montecarlo': (rmul(100.0), symmetricise, clipped_neg_exp, p_to_affinities),
+    'montecarlo-diagonal': (rmul(10.0), norm_diagonal, symmetricise, clipped_neg_exp,
                             p_to_affinities),
-    'montecarlo-asymmetric': (clipped_neg_exp, p_to_affinities),
-    'montecarlo-sigmoid': (symmetricise, clipped_logistic,
+    'montecarlo-asymmetric': (rmul(10.0), clipped_neg_exp, p_to_affinities),
+    'montecarlo-sigmoid': (neg, rmul(10.0), symmetricise, clipped_logistic,
+                           p_to_affinities),
+    'montecarlo-sigmoid-asymmetric': (neg, rmul(10.0), clipped_logistic,
                            p_to_affinities),
     'sigmoid': (neg, symmetricise, clipped_logistic,),
     'transpose-sigmoid': (np.transpose, neg, clipped_logistic,),
