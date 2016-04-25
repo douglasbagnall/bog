@@ -6,7 +6,7 @@ import os
 import sys
 import argparse
 import time
-
+from colour import GREY, C_NORMAL
 from operator import neg
 
 from meta import load_opinions
@@ -73,6 +73,7 @@ def symmetricise(x):
 def rmul(n):
     def mul(x):
         return x * n
+    mul.__name__ = 'mul_%d' % n
     return mul
 
 def norm_diagonal(x):
@@ -167,8 +168,9 @@ def main():
     args = parser.parse_args()
 
     if args.list_strategies:
-        for k in STRATEGIES:
-            print k
+        for k, v in STRATEGIES.items():
+            print "%-30s %s%s%s" % (k, GREY, ' . '.join(x.__name__ for x in v),
+                                    C_NORMAL)
         sys.exit()
 
     affinities, names, control_texts, control_models = load_all_opinions(args.input)
