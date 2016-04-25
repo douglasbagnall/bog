@@ -59,7 +59,7 @@ def add_rnn_args(add_arg):
     add_arg('-d', '--bptt-depth', type=int, default=50,
             help="how far to backpropagate through time")
 
-    add_arg('--ignore-start', type=int, default=0,
+    add_arg('--ignore-start', type=int, default=10,
             help="don't train on this many characters at start")
 
     add_arg('-f', '--filename', help="save net here")
