@@ -2,15 +2,19 @@
 
 from meta import read_info_json
 from eval import load_ground_truths
-from language import TRAINING_CORPUS
-from colour import print_GREEN
+from language import TRAINING_CORPUS, load_corpus
+from colour import print_GREEN, print_RED
+
 
 
 def main():
     info = read_info_json(TRAINING_CORPUS)
     truths = load_ground_truths("%s/truth" % TRAINING_CORPUS)
 
+    langs = set()
+
     for pid, lang, genre in info:
+        langs.add(lang)
         print_GREEN("%s (%s)" % (pid, lang))
         truth = truths[pid]
         print "%d documents" % len(truth['documents'])
@@ -24,5 +28,23 @@ def main():
         for lc, size in sorted(counts.items(), reverse=True, key=lambda x:x[1]):
             print "%2d clusters of size %d" % (lc, size)
         print
+
+    for lang in langs:
+        texts, problems = load_corpus(TRAINING_CORPUS, lang)
+        n = len(texts)
+        print_RED("%s: %d texts" % (lang, n))
+        lengths = sorted(len(x) for x in texts.values())
+        print "min %d  median %d max %d" % (lengths[0],
+                                            lengths[n / 2],
+                                            lengths[-1])
+        total = sum(lengths)
+        print "mean %d total %d" % (total / n, total)
+        step = 1000
+        low, high = 0, 1000
+        while low < lengths[-1]:
+            c = sum(low < x < high for x in lengths)
+            print "<%6d %s" % (high, '#' * c)
+            low = high
+            high += step
 
 main()
