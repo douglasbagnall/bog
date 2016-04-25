@@ -10,8 +10,9 @@ import time
 from operator import neg
 
 from meta import load_opinions
-from munge import p_to_affinities, data_to_clusters
+from munge import p_to_affinities, data_to_clusters, array_to_link_pairs
 from munge import clipped_neg_exp, clipped_logistic, shuffle_array
+from munge import cluster_aware_matrix
 
 from eval import load_clustering_json, load_ranking_json, calc_map
 
@@ -160,6 +161,9 @@ def main():
     parser.add_argument('--no-fbcubed', action='store_true',
                         help="don't do fbcubed even with ground truth")
 
+    parser.add_argument('--cluster-aware', action='store_true',
+                        help="use cluster aware scoring")
+
     args = parser.parse_args()
 
     if args.list_strategies:
@@ -215,6 +219,9 @@ def main():
         if args.shuffle:
             data = shuffle_array(data)
 
+        if args.cluster_aware:
+            data = cluster_aware_matrix(data, names[tag])
+
         thresholds = np.unique(data)
 
         fig = plt.figure(figsize=(12, 10))
@@ -230,12 +237,7 @@ def main():
 
         if true_ranking:
             documents = names[tag]
-            links = []
-            n = data.shape[0]
-            for i in range(n):
-                for j in range(i + 1, n):
-                    links.append((data[i, j], (documents[i], documents[j])))
-
+            links = array_to_link_pairs(data, documents)
             map = calc_map(links, true_ranking[tag], documents)
             print "MAP is %f" % map
             ax.set_title("%s: MAP %.3g" % (tag, map))

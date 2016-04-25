@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import random
 import numpy as np
-
+from itertools import combinations
 from meta import makepath
 
 
@@ -116,3 +116,78 @@ def shuffle_array(a):
     a = a.flatten()
     np.random.shuffle(a)
     return a.reshape(shape)
+
+
+def array_to_link_pairs(a, names):
+    """make a sorted list of links from the top triangle of an array."""
+    links = []
+    n = a.shape[0]
+    for i in range(n):
+        for j in range(i + 1, n):
+            links.append((a[i, j], (names[i], names[j])))
+    return links
+
+
+# Connecting
+
+def cluster_aware_scoring(links, names, depth=3):
+    doc_indices = {d: i for i, d in enumerate(names)}
+    pairs = sorted(links, reverse=True)
+    affinities = {x: {} for x in names}
+    scores = {p:s for s, p in pairs}
+    multiples = [pairs]
+    for i in range(depth - 2):
+        print "looking at (3+%d)-uples" % i
+        prevuple = multiples[-1]
+        newuple = []
+        multiples.append(newuple)
+        for s, p in prevuple:
+            j = doc_indices[p[-1]] + 1
+            for new_d in names[j:]:
+                new_s = s
+                for d in p:
+                    new_s += scores[(d, new_d)]
+                newuple.append((new_s, p + (new_d,)))
+
+    for i, uple in enumerate(multiples):
+        uple.sort(reverse=True)
+        # n! / r! / (n-r)!
+        scale = 2.0 / ((i + 2) * (i + 1))
+        uple = [(s * scale, p) for s, p in uple]
+        s, p = uple[0]
+        print "%d: %d, best %s %.3f" % (len(p), len(uple), p, s)
+
+    alluple = []
+    for x in multiples:
+        alluple.extend(x)
+    alluple.sort(reverse=True)
+    used_links = set()
+    out = []
+    for s, uple in alluple:
+        for p in combinations(uple, 2):
+            if p in used_links:
+                continue
+            used_links.add(p)
+            out.append((s, p))
+    return out
+
+
+def cluster_aware_matrix(data, names):
+    links = array_to_link_pairs(data, names)
+    links2 = cluster_aware_scoring(links, names)
+    return links_to_matrix(links2, names)
+
+
+
+def links_to_matrix(links, names):
+    """make a symmetric array from a set of links."""
+    n = len(names)
+    doc_indices = {d: i for i, d in enumerate(names)}
+
+    a = np.zeros((n, n))
+    for s, p in links:
+        d1, d2 = p
+        x = doc_indices[d1]
+        y = doc_indices[d2]
+        a[x, y] = s
+    return a
