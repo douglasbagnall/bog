@@ -118,12 +118,13 @@ def shuffle_array(a):
     return a.reshape(shape)
 
 
-def array_to_link_pairs(a, names):
+def array_to_link_pairs(a, names, include_self=False):
     """make a sorted list of links from the top triangle of an array."""
     links = []
+    no_self = int(not include_self)
     n = a.shape[0]
     for i in range(n):
-        for j in range(i + 1, n):
+        for j in range(i + no_self, n):
             links.append((a[i, j], (names[i], names[j])))
     return links
 

@@ -14,6 +14,7 @@ from munge import p_to_affinities, data_to_clusters, array_to_link_pairs
 from munge import clipped_neg_exp, clipped_logistic, shuffle_array
 from munge import cluster_aware_matrix
 
+from eval import print_links
 from eval import load_clustering_json, load_ranking_json, calc_map
 
 
@@ -149,6 +150,9 @@ def main():
     parser.add_argument('-m', '--show-map', action='store_true',
                         help='show mean average precision')
 
+    parser.add_argument('--print-links', action='store_true',
+                        help='print links, highlighting truth')
+
     parser.add_argument('--time', action='store_true',
                         help=('show no figure, print elapsed '
                               'time for first problem'))
@@ -194,14 +198,14 @@ def main():
                     for doc in cluster:
                         true_clusters[doc] = cluster
 
-        if args.show_map:
+        if args.show_map or args.print_links:
             true_ranking = {}
             for pid in affinities:
                 fn = os.path.join(args.ground_truth_dir, pid, 'ranking.json')
                 true_ranking[pid] = load_ranking_json(fn)
 
-    elif args.show_map:
-        print ("you need to supply --ground-truth-dir for --show-map")
+    elif args.show_map or args.print_links:
+        print ("you need to supply --ground-truth-dir for --show-map or --print_links")
         sys.exit(1)
 
     n_problems = len(affinities)
@@ -237,13 +241,18 @@ def main():
 
         plot(thresholds, 'r.', linewidth=LINE_WIDTH, label='thresholds')
 
-        if true_ranking:
+        if args.show_map:
             documents = names[tag]
             links = array_to_link_pairs(data, documents)
             map = calc_map(links, true_ranking[tag], documents)
             print "MAP is %f" % map
             ax.set_title("%s: MAP %.3g" % (tag, map))
             map_sum += map
+
+        if args.print_links:
+            documents = names[tag]
+            links = array_to_link_pairs(data, documents, True)
+            print_links(links, true_ranking[tag], documents)
 
         if args.delta:
             deltas = np.diff(thresholds) * 10

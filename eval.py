@@ -1,6 +1,6 @@
 import json
 import os
-
+from colour import print_GREEN, print_YELLOW, print_CYAN, RED
 
 def load_clustering_json(fn):
     f = open(fn)
@@ -104,3 +104,33 @@ def calc_map2(links, truth, documents):
         score += records[d][0]
 
     return score / len(documents)
+
+
+def print_links(links, truth, documents):
+    links = sorted(links, reverse=True)
+    true_links = set(x[1] for x in truth)
+    self_links = [(x, x) for x in documents]
+    n = 0
+    i = 0
+    bad_run = []
+    for score, pair in links:
+        i += 1
+        spair = '--'.join(str(x)[-8:-4] for x in pair)
+        if pair in self_links or pair in true_links:
+            if bad_run:
+                print("...skipped %d false links %.3f-%.3f" % (len(bad_run),
+                                                              bad_run[0],
+                                                              bad_run[-1]))
+                bad_run = []
+            if pair in true_links:
+                print_GREEN("%.3f %s TRUE link" % (score, spair))
+                n += 1
+                if n == len(true_links):
+                    print_CYAN("all true links found after %d of %d" %
+                               (i, len(links)))
+                    print("...skipping %d false links" % (len(links) - i))
+                    break
+            else:
+                print_YELLOW("%.3f %s SELF link" % (score, spair))
+        else:
+            bad_run.append(score)
