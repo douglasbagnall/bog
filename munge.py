@@ -70,7 +70,7 @@ def data_to_clusters(data, threshold, names=None):
     return clusters_d
 
 
-def p_to_affinities(input, samples=1000):
+def p_to_affinities(input, samples=3000):
     """Treat the input array as a (somehow) scaled probability that two
     nodes are linked. The probability that they're in the same cluster
     has a transitive element.
