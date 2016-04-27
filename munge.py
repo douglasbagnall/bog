@@ -174,13 +174,6 @@ def cluster_aware_scoring(links, names, depth=3):
     return out
 
 
-def cluster_aware_matrix(data, names):
-    links = array_to_link_pairs(data, names)
-    links2 = cluster_aware_scoring(links, names)
-    return links_to_matrix(links2, names)
-
-
-
 def links_to_matrix(links, names):
     """make a symmetric array from a set of links."""
     n = len(names)
@@ -194,6 +187,14 @@ def links_to_matrix(links, names):
         a[x, y] = s
         a[y, x] = s
     return a
+
+
+def cluster_aware_matrix(data, names):
+    links = array_to_link_pairs(data, names)
+    links = cluster_aware_scoring(links, names)
+    return links_to_matrix(links, names)
+
+
 def text_length_penalty(data, names, dirname):
     """reduce the score of short texts and their models (towards zero),
     because they can't be certain about anything.
