@@ -381,12 +381,13 @@ def main():
                     if score > best_fbcubed:
                         best_fbcubed = score
                         best_fbcubed_c = len(clusters)
+                        best_fbcubed_t = t
                 fbcubed.append(score)
-
             plot(fbcubed, 'b.', linewidth=LINE_WIDTH, label='fbcubed')
-            print "FBCUBED best: %.3f at %d/%d" % (best_fbcubed,
-                                                   best_fbcubed_c,
-                                                   data.shape[0])
+            print "FBCUBED best: %.3f at %d/%d (%.2f)" % (best_fbcubed,
+                                                          best_fbcubed_c,
+                                                          data.shape[0],
+                                                          best_fbcubed_t)
             fbcubed_best_sum += best_fbcubed
             fbcubed_c_sum += (best_fbcubed_c / float(data.shape[0]))
 
