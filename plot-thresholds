@@ -13,6 +13,7 @@ from meta import load_opinions
 from munge import p_to_affinities, data_to_clusters, array_to_link_pairs
 from munge import clipped_neg_exp, clipped_logistic, shuffle_array
 from munge import cluster_aware_matrix, text_length_penalty
+from munge import write_normalised_png
 
 from eval import print_links
 from eval import load_clustering_json, load_ranking_json, calc_map
@@ -174,6 +175,10 @@ def main():
     parser.add_argument('--text-length-penalty', action='store_true',
                         help="penalise short texts")
 
+    parser.add_argument('--png-save-dir',
+                        help="save array images here")
+
+
     args = parser.parse_args()
 
     if args.list_strategies:
@@ -237,6 +242,11 @@ def main():
             # this would be simpler if we had the texts, but no.
             data = text_length_penalty(data, names[tag],
                                        os.path.join(TRAINING_CORPUS, pid))
+
+        if args.png_save_dir:
+            fn = "%s/%s.png" % (args.png_save_dir, tag)
+            write_normalised_png(data, fn)
+
         thresholds = np.unique(data)
 
         fig = plt.figure(figsize=(12, 10))
