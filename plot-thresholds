@@ -80,8 +80,11 @@ def rmul(n):
     mul.__name__ = 'mul_%d' % n
     return mul
 
-def norm_diagonal(x):
-    return x - np.diagonal(x)
+
+def _norm_diagonal(x, *etc):
+    d = np.diagonal(x)
+    d = d.reshape(d.shape + (1,))
+    return x - d
 
 
 def _norm_texts(x, control_texts, control_models):
@@ -100,17 +103,66 @@ def _norm_none(x, control_texts, control_models):
     return x
 
 
+def _norm_scale_l1(x, control_texts, control_models):
+    x -= control_texts
+    y = np.abs(x)
+    s = y.sum(0)
+    s = np.maximum(s, 1e-8)
+    return x / s
+
+
+def _norm_scale_l2(x, control_texts, control_models):
+    x -= control_texts
+    y = x * x
+    s = y.sum(0)
+    s = np.maximum(s, 1e-8)
+    return x / s
+
+
+def _norm_scale_diagonal_l1(x, control_texts, control_models):
+    x = _norm_diagonal(x, control_texts, control_models)
+    y = np.abs(x)
+    s = y.sum(0)
+    s = np.maximum(s, 1e-8)
+    return x / s
+
+
+def _norm_scale_diagonal_l2(x, control_texts, control_models):
+    x = _norm_diagonal(x, control_texts, control_models)
+    y = x * x
+    s = y.sum(0)
+    s = np.maximum(s, 1e-8)
+    return x / s
+
+
+def _norm_scale_half_l1(x, control_texts, control_models):
+    x -= control_texts
+    y = np.abs(x)
+    s = y.sum(0)
+    s = np.maximum(s, 1e-8)
+    s += np.mean(s) * 0.5
+    x /= s
+    return x
+
+
+def _norm_scale_half_l2(x, control_texts, control_models):
+    x -= control_texts
+    y = x * x
+    s = y.sum(0)
+    s += np.mean(s) * 0.5
+    x /= s
+    return x
+
+
 LINE_WIDTH = 0.5
 
 STRATEGIES = {
     'asymmetric': (neg,),
     'simple': (neg, symmetricise),
     'transpose': (np.transpose, neg),
-    'diagonal': (neg, norm_diagonal),
-    'diagonal-symmetric': (neg, norm_diagonal, symmetricise),
     'montecarlo': (rmul(100.0), symmetricise, clipped_neg_exp, p_to_affinities),
-    'montecarlo-diagonal': (rmul(10.0), norm_diagonal, symmetricise, clipped_neg_exp,
-                            p_to_affinities),
+    'montecarlo-10': (rmul(10.0), symmetricise, clipped_neg_exp,
+                      p_to_affinities),
     'montecarlo-asymmetric': (rmul(10.0), clipped_neg_exp, p_to_affinities),
     'montecarlo-sigmoid': (neg, rmul(10.0), symmetricise, clipped_logistic,
                            p_to_affinities),
@@ -121,6 +173,7 @@ STRATEGIES = {
     'sigmoid-asymmetric': (neg, clipped_logistic,),
 }
 
+NORMALISERS = {k[6:]: v for k, v in globals().items() if k[:6] == '_norm_'}
 
 def main():
     parser = argparse.ArgumentParser()
@@ -131,8 +184,8 @@ def main():
                         help='cluster ground truth (json)')
 
     parser.add_argument('-n', '--normalise', default='texts',
-                        choices=('texts', 'models', 'both', 'none'),
-                        help='normailse in this dimension')
+                        choices=NORMALISERS.keys(),
+                        help='normalise in this dimension')
 
     parser.add_argument('--strategy', default='simple',
                         choices=STRATEGIES.keys(),
@@ -225,7 +278,7 @@ def main():
         c_texts = control_texts[tag]
         c_models = control_models[tag]
 
-        norm = globals()['_norm_' + args.normalise]
+        norm = NORMALISERS[args.normalise]
         data = norm(data, c_texts, c_models)
 
         functions = STRATEGIES[args.strategy]
