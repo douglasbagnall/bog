@@ -44,23 +44,18 @@ def makepath(*fragments):
     return fn
 
 
-def write_clusters_json(clusters, docnames, output_dir, problem,
-                        tag=None):
+def write_clusters_json(clusters, docnames, dest_dir, fn='clustering.json'):
     json_clusters = []
     for cluster in clusters:
         json_clusters.append([{'document': docnames[x]} for x in cluster])
 
-    fn = "clustering.json"
-    if tag:
-        fn = '%s-%s' % (tag, fn)
-    ffn = makepath(output_dir, problem, fn)
+    ffn = makepath(dest_dir, fn)
     f = open(ffn, 'w')
     json.dump(json_clusters, f, indent=4)
     f.close()
 
 
-def write_attractions_json(attractions, docnames, output_dir, problem,
-                           tag=None):
+def write_rankings_json(attractions, docnames, dest_dir, fn='ranking.json'):
     low = np.amin(attractions)
     high = np.amax(attractions)
     scale = 0.999999 / (high - low)
@@ -72,20 +67,12 @@ def write_attractions_json(attractions, docnames, output_dir, problem,
             json_pairs.append({'document1': docnames[x],
                                'document2': docnames[y],
                                'score': scores[x, y]})
-    fn = "ranking.json"
-    if tag:
-        fn = '%s-%s' % (tag, fn)
-    ffn = makepath(output_dir, problem, fn)
+
+    ffn = makepath(dest_dir, fn)
     f = open(ffn, 'w')
     json.dump(json_pairs, f, indent=4)
     f.close()
 
-
-def write_results(docnames, problem, affinities,
-                  clusters, d, tag=None):
-    #print len(clusters), clusters
-    write_clusters_json(clusters, docnames, d, problem, tag=tag)
-    write_attractions_json(affinities, docnames, d, problem, tag=tag)
 
 # opinions should be like this:
 # problems, affinities, names, control_texts, control_models

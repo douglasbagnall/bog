@@ -9,99 +9,43 @@ import random
 import numpy as np
 import arguments
 
-from meta import write_results, load_opinions
+from interpret import apply_interpret_options, add_interpret_options
+
+from meta import write_rankings_json, write_clusters_json, load_opinions
 
 from munge import clipped_neg_exp, clipped_logistic
 from munge import (write_normalised_png,
-                   p_to_affinities, links_to_clusters)
+                   p_to_affinities, data_to_clusters)
 
 
-def affinities_to_clusters(affinities, threshold=None, n_min=None):
-    if threshold is None and n_min is None:
-        # lets try to find a threshold that will give us a middle
-        # number of clusters.
-        threshold = np.percentile(affinities, 98)
-
-    if threshold is None:
-        for threshold in sorted(set(affinities)):
-            links = affinities > threshold
-            clusters = links_to_clusters(links)
-            if len(clusters) > n_min:
-                break
-    else:
-        links = affinities > threshold
-        clusters = links_to_clusters(links)
-
-    return clusters
+def find_clusters(data, clusteriness=0):
+    diagonal = np.diagonal(data)
+    d_worst = np.min(diagonal)
+    median = np.median(data)
+    threshold = d_worst - clusteriness * (d_worst - median)
+    return data_to_clusters(data, threshold)
 
 
-def write_opinions(output_dir, problems, affinities, names,
-                   control_texts, control_models):
-    for pid, records in problems.items():
-        raw_affinities = affinities[pid]
-        norm_affinities = raw_affinities - control_texts[pid]
-        norm3_affinities = raw_affinities - control_models[pid]
-        norm_both_affinities = 0.5 * (norm_affinities + norm3_affinities)
-        diagonal = np.diagonal(norm_affinities)
-        norm2_affinities = norm_affinities - diagonal
-        norm_diag_affinities = raw_affinities - np.diagonal(raw_affinities)
-        sigmoid_affinities = clipped_logistic(norm_affinities)
-        open_affinities = clipped_neg_exp(norm_affinities)
-        transitive_affinities = p_to_affinities(open_affinities)
-        transitive_sigmoid_affinities = p_to_affinities(sigmoid_affinities)
-        symmetric_norm = norm2_affinities + norm2_affinities.T
-
-        clusters = affinities_to_clusters(transitive_affinities)
-        #sigmoid_clusters = affinities_to_clusters(sigmoid_affinities)
-        #raw_clusters = affinities_to_clusters(-raw_affinities)
-        #norm_clusters = affinities_to_clusters(-norm_affinities)
-        #symmetric_clusters = affinities_to_clusters(-symmetric_norm)
-        #norm2_clusters = affinities_to_clusters(-norm2_affinities)
-
-        fn = os.path.join(output_dir, '%s-%%s.png' % pid)
-        write_normalised_png(raw_affinities, fn % 'raw_affinities')
-        write_normalised_png(norm_affinities, fn % 'norm_affinities')
-        write_normalised_png(norm2_affinities, fn % 'norm2_affinities')
-        write_normalised_png(norm3_affinities, fn % 'norm3_affinities')
-        write_normalised_png(norm_both_affinities, fn % 'norm_both_affinities')
-        write_normalised_png(norm_diag_affinities, fn % 'norm_diag_affinities')
-        write_normalised_png(symmetric_norm, fn % 'symmetric_norm')
-        write_normalised_png(sigmoid_affinities, fn % 'sigmoid_affinities')
-        write_normalised_png(open_affinities, fn % 'open_affinities')
-        write_normalised_png(transitive_sigmoid_affinities,
-                             fn % 'transitive_sigmoid_affinities')
-        write_normalised_png(transitive_affinities,
-                             fn % 'transitive_affinities')
-
-        docnames = [x[0] for x in records]
-        write_results(docnames, pid, -symmetric_norm, clusters,
-                      output_dir)
+def write_opinions(output_dir, affinities, all_names, clusteriness):
+    for pid, data in affinities.items():
+        names = all_names[pid]
+        clusters = find_clusters(data, clusteriness)
+        dest_dir = os.path.join(output_dir, pid)
+        write_clusters_json(clusters, names, dest_dir)
+        write_rankings_json(data, names, dest_dir)
 
 
 def main():
     parser = argparse.ArgumentParser()
-
-    arguments.add_common_args(parser.add_argument, input_dir=False)
-    parser.add_argument('--load',
-                        help='load raw opinions from here')
-
+    add_interpret_options(parser)
+    parser.add_argument('-o', '--output-dir', help="write results here")
+    parser.add_argument('--clusteriness', help="how much to cluster",
+                        default=0.0, type=float)
     args = parser.parse_args()
 
-    if args.rng_seed != -1:
-        random.seed(args.rng_seed)
+    affinities, all_names = apply_interpret_options(args)
 
-    if args.output_dir is None:
-        dir = arguments.make_directory_name(args.basename, args.lang,
-                                            args.load)
-        args.output_dir = dir
-
-    if args.load is None:
-        args.load = os.path.join(args.output_dir,
-                                 '%s-affinities.pickle' % args.lang)
-
-    opinions = load_opinions(args.load)
-
-    write_opinions(args.output_dir, **opinions)
+    write_opinions(args.output_dir, affinities, all_names, args.clusteriness)
 
 
 main()

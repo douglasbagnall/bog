@@ -5,7 +5,7 @@ import sys
 import os
 
 from meta import load_opinions
-from munge import p_to_affinities, data_to_clusters, array_to_link_pairs
+from munge import p_to_affinities, array_to_link_pairs
 from munge import clipped_neg_exp, clipped_logistic, shuffle_array
 from munge import find_text_lengths, text_length_penalty
 from munge import write_normalised_png, cluster_aware_matrix
@@ -215,7 +215,7 @@ def apply_interpret_options(args):
             else:
                 d = os.path.join(args.text_length_penalty, pid)
                 lengths = find_text_lengths(names[pid], d)
-                                            
+
 
             data = text_length_penalty(data, lengths)
 
