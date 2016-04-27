@@ -255,11 +255,12 @@ def main():
         if not args.no_fbcubed:
             true_clusters = {}
             for pid in affinities:
+                true_clusters[pid] = {}
                 fn = os.path.join(args.ground_truth_dir, pid, 'clustering.json')
                 documents, clusters = load_clustering_json(fn)
                 for cluster in clusters:
                     for doc in cluster:
-                        true_clusters[doc] = cluster
+                        true_clusters[pid][doc] = cluster
 
         if args.show_map or args.print_links:
             true_ranking = {}
@@ -375,7 +376,7 @@ def main():
             for t in thresholds:
                 clusters = data_to_clusters(data, t, names[tag])
                 if clusters != old_clusters:
-                    score = calc_fbcubed(true_clusters, clusters)
+                    score = calc_fbcubed(true_clusters[tag], clusters)
                     old_clusters = clusters
                     if score > best_fbcubed:
                         best_fbcubed = score
