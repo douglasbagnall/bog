@@ -192,6 +192,7 @@ def links_to_matrix(links, names):
         x = doc_indices[d1]
         y = doc_indices[d2]
         a[x, y] = s
+        a[y, x] = s
     return a
 def text_length_penalty(data, names, dirname):
     """reduce the score of short texts and their models (towards zero),
