@@ -274,10 +274,10 @@ def main():
 
     n_problems = len(affinities)
 
-    for tag, data in affinities.items():
-        print tag
-        c_texts = control_texts[tag]
-        c_models = control_models[tag]
+    for pid, data in affinities.items():
+        print pid
+        c_texts = control_texts[pid]
+        c_models = control_models[pid]
 
         if args.shuffle:
             data = shuffle_array(data)
@@ -290,22 +290,22 @@ def main():
             data = func(data)
 
         if args.cluster_aware:
-            data = cluster_aware_matrix(data, names[tag])
+            data = cluster_aware_matrix(data, names[pid])
 
         if args.text_length_penalty:
             # this would be simpler if we had the texts, but no.
-            data = text_length_penalty(data, names[tag],
+            data = text_length_penalty(data, names[pid],
                                        os.path.join(TRAINING_CORPUS, pid))
 
         if args.png_save_dir:
-            fn = "%s/%s.png" % (args.png_save_dir, tag)
+            fn = "%s/%s.png" % (args.png_save_dir, pid)
             write_normalised_png(data, fn)
 
         thresholds = np.unique(data)
 
         fig = plt.figure(figsize=(12, 10))
         ax = fig.add_subplot(111)
-        ax.set_title(tag)
+        ax.set_title(pid)
         if args.no_plot:
             def plot(*args, **kwargs):
                 pass
@@ -315,17 +315,17 @@ def main():
         plot(thresholds, 'r.', linewidth=LINE_WIDTH, label='thresholds')
 
         if args.show_map:
-            documents = names[tag]
+            documents = names[pid]
             links = array_to_link_pairs(data, documents)
-            map = calc_map(links, true_ranking[tag], documents)
+            map = calc_map(links, true_ranking[pid], documents)
             print "MAP is %f" % map
-            ax.set_title("%s: MAP %.3g" % (tag, map))
+            ax.set_title("%s: MAP %.3g" % (pid, map))
             map_sum += map
 
         if args.print_links:
-            documents = names[tag]
+            documents = names[pid]
             links = array_to_link_pairs(data, documents, True)
-            print_links(links, true_ranking[tag], documents)
+            print_links(links, true_ranking[pid], documents)
 
         if args.delta:
             deltas = np.diff(thresholds) * 10
@@ -374,9 +374,9 @@ def main():
             best_fbcubed = -1
             best_fbcubed_c = 0
             for t in thresholds:
-                clusters = data_to_clusters(data, t, names[tag])
+                clusters = data_to_clusters(data, t, names[pid])
                 if clusters != old_clusters:
-                    score = calc_fbcubed(true_clusters[tag], clusters)
+                    score = calc_fbcubed(true_clusters[pid], clusters)
                     old_clusters = clusters
                     if score > best_fbcubed:
                         best_fbcubed = score
@@ -393,7 +393,7 @@ def main():
 
         if args.time:
             elapsed = time.time() - start_time
-            print "%s %s took %.2f seconds" % (tag, data.shape, elapsed)
+            print "%s %s took %.2f seconds" % (pid, data.shape, elapsed)
             sys.exit()
 
         if not args.no_plot:
