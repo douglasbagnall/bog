@@ -4,7 +4,8 @@ import random
 import numpy as np
 from itertools import combinations
 from meta import makepath
-
+import math
+import os
 
 def write_normalised_png(a, fn, verbose=False):
     from PIL import Image
@@ -192,3 +193,24 @@ def links_to_matrix(links, names):
         y = doc_indices[d2]
         a[x, y] = s
     return a
+def text_length_penalty(data, names, dirname):
+    """reduce the score of short texts and their models (towards zero),
+    because they can't be certain about anything.
+    """
+    files = os.listdir(dirname)
+    if sorted(files) != sorted(names):
+        print set(files) - set(names)
+        print set(names) - set(files)
+        raise ValueError("the files don't match")
+    penalty = []
+    for fn in names:
+        s = os.stat('%s/%s' % (dirname, fn)).st_size
+        penalty.append(1.0 - 2.0 / math.log(s))
+
+    p = np.array(penalty)
+    p2 = p.reshape(p.shape + (1,))
+
+    data *= p
+    data *= p2
+
+    return data

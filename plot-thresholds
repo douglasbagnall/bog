@@ -12,10 +12,12 @@ from operator import neg
 from meta import load_opinions
 from munge import p_to_affinities, data_to_clusters, array_to_link_pairs
 from munge import clipped_neg_exp, clipped_logistic, shuffle_array
-from munge import cluster_aware_matrix
+from munge import cluster_aware_matrix, text_length_penalty
 
 from eval import print_links
 from eval import load_clustering_json, load_ranking_json, calc_map
+
+from language import TRAINING_CORPUS
 
 
 def load_all_opinions(filenames):
@@ -169,6 +171,9 @@ def main():
     parser.add_argument('--cluster-aware', action='store_true',
                         help="use cluster aware scoring")
 
+    parser.add_argument('--text-length-penalty', action='store_true',
+                        help="penalise short texts")
+
     args = parser.parse_args()
 
     if args.list_strategies:
@@ -228,6 +233,10 @@ def main():
         if args.cluster_aware:
             data = cluster_aware_matrix(data, names[tag])
 
+        if args.text_length_penalty:
+            # this would be simpler if we had the texts, but no.
+            data = text_length_penalty(data, names[tag],
+                                       os.path.join(TRAINING_CORPUS, pid))
         thresholds = np.unique(data)
 
         fig = plt.figure(figsize=(12, 10))
