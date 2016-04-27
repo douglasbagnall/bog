@@ -139,7 +139,7 @@ def cluster_aware_scoring(links, names, depth=3):
     scores = {p:s for s, p in pairs}
     multiples = [pairs]
     for i in range(depth - 2):
-        print "looking at (3+%d)-uples" % i
+        #print "looking at (3+%d)-uples" % i
         prevuple = multiples[-1]
         newuple = []
         multiples.append(newuple)
@@ -151,17 +151,16 @@ def cluster_aware_scoring(links, names, depth=3):
                     new_s += scores[(d, new_d)]
                 newuple.append((new_s, p + (new_d,)))
 
+    alluple = []
     for i, uple in enumerate(multiples):
         uple.sort(reverse=True)
         # n! / r! / (n-r)!
         scale = 2.0 / ((i + 2) * (i + 1))
         uple = [(s * scale, p) for s, p in uple]
+        alluple.extend(uple)
         s, p = uple[0]
-        print "%d: %d, best %s %.3f" % (len(p), len(uple), p, s)
+        #print "%d: %d, best %s %.3f" % (len(p), len(uple), p, s)
 
-    alluple = []
-    for x in multiples:
-        alluple.extend(x)
     alluple.sort(reverse=True)
     used_links = set()
     out = []
