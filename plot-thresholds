@@ -278,15 +278,15 @@ def main():
         c_texts = control_texts[tag]
         c_models = control_models[tag]
 
+        if args.shuffle:
+            data = shuffle_array(data)
+
         norm = NORMALISERS[args.normalise]
         data = norm(data, c_texts, c_models)
 
         functions = STRATEGIES[args.strategy]
         for func in functions:
             data = func(data)
-
-        if args.shuffle:
-            data = shuffle_array(data)
 
         if args.cluster_aware:
             data = cluster_aware_matrix(data, names[tag])
