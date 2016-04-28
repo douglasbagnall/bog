@@ -147,7 +147,7 @@ STRATEGIES = {
 
 
 
-def add_interpret_options(parser):
+def add_interpret_options(parser, corpus_dir=True):
     parser.add_argument('-i', '--input', action='append',
                         help='input filename[s] (pickle)')
 
@@ -168,7 +168,7 @@ def add_interpret_options(parser):
     parser.add_argument('--cluster-aware', action='store_true',
                         help="use cluster aware scoring")
 
-    parser.add_argument('--text-length-penalty', const=True, nargs='?',
+    parser.add_argument('--text-length-penalty', const=corpus_dir, nargs='?',
                         help=("penalise short texts "
                               "(optional: dir to read from)"))
 

@@ -44,7 +44,7 @@ LINE_WIDTH = 0.5
 
 def main():
     parser = argparse.ArgumentParser()
-    add_interpret_options(parser)
+    add_interpret_options(parser, corpus_dir=TRAINING_CORPUS)
     parser.add_argument('-g', '--ground-truth-dir',
                         help='cluster ground truth (json)')
 
