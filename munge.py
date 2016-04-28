@@ -194,19 +194,25 @@ def cluster_aware_matrix(data, names):
     return links_to_matrix(links, names)
 
 
-def text_length_penalty(data, names, dirname):
-    """reduce the score of short texts and their models (towards zero),
-    because they can't be certain about anything.
-    """
+def find_text_lengths(names, dirname):
+    """For when the text length hasn't been saved"""
     files = os.listdir(dirname)
     if sorted(files) != sorted(names):
         print set(files) - set(names)
         print set(names) - set(files)
         raise ValueError("the files don't match")
-    penalty = []
+    lengths = []
     for fn in names:
         s = os.stat('%s/%s' % (dirname, fn)).st_size
-        penalty.append(1.0 - 2.0 / math.log(s))
+        lengths.append(s)
+    return lengths
+
+
+def text_length_penalty(data, lengths):
+    """reduce the score of short texts and their models (towards zero),
+    because they can't be certain about anything.
+    """
+    penalty = [1.0 - 2.0 / math.log(s) for s in lengths]
 
     p = np.array(penalty)
     p2 = p.reshape(p.shape + (1,))
