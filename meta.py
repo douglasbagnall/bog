@@ -94,6 +94,7 @@ def write_results(docnames, problem, affinities,
 # names          dict (string => list of string)
 # control_texts  dict (string => nx1 numpy array)
 # control_models dict (string => 1xn numpy array)
+# text_lengths   dict (string => list)
 #
 # All dicts should be the same size
 
@@ -104,7 +105,9 @@ def validate_opinions(opinions):
         'names': (tuple, basestring,),
         'control_texts': (np.ndarray, 'tall'),
         'control_models': (np.ndarray, 'long'),
+        'text_lengths': (list, int),
     }
+
     keys = set(opinions['names'].keys())
     for k, d in opinions.items():
         expected = expected_types[k]

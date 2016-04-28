@@ -41,7 +41,7 @@ def get_problem_and_control_sets(entropy_cache, problems):
     return classified_tids, control_tids
 
 
-def entropies_to_opinions(entropy_cache, problems):
+def entropies_to_opinions(entropy_cache, problems, text_len_lut):
     # Get the cross-entropy between all subnets against the texts of
     # each problem. Because texts are often in more than one problem,
     # we keep a cache (this is sort-of expensive).
@@ -49,6 +49,7 @@ def entropies_to_opinions(entropy_cache, problems):
     names = {}
     all_control_texts = {}
     all_control_models = {}
+    all_text_lengths = {}
 
     classified_tids, control_tids = \
         get_problem_and_control_sets(entropy_cache, problems)
@@ -76,6 +77,7 @@ def entropies_to_opinions(entropy_cache, problems):
         entropy_matrix = []
         control_texts = []
         control_models = []
+        lengths = []
         for fn, ffn, tid in records:
             entropies = entropy_cache[tid]
             local_entropies = [entropies[x] for x in text_ids]
@@ -85,16 +87,18 @@ def entropies_to_opinions(entropy_cache, problems):
             # column-oriented subtraction.
             control_texts.append([control_text_lut[tid]])
             control_models.append(control_model_lut[tid])
+            lengths.append(text_len_lut[tid])
 
         affinities[pid] = np.array(entropy_matrix)
         all_control_texts[pid] = np.array(control_texts)
         all_control_models[pid] = np.array(control_models)
-
+        all_text_lengths[pid] = lengths
     return {
         'affinities': affinities,
         'names': names,
         'control_texts': all_control_texts,
-        'control_models': all_control_models
+        'control_models': all_control_models,
+        'text_lengths': all_text_lengths
     }
 
 
@@ -103,7 +107,8 @@ def opine(net, texts, problems, ignore_start):
     start = time.time()
     entropy_cache = full_entropy_matrix(net, texts, ignore_start)
     print "got raw entropies in %d:%02d" % divmod(time.time() - start, 60)
-    return entropies_to_opinions(entropy_cache, problems)
+    text_len_lut = {k: len(v) for k, v in texts.iteritems()}
+    return entropies_to_opinions(entropy_cache, problems, text_len_lut)
 
 
 def calc_ventropy_change(ventropies, prev_ventropies):
