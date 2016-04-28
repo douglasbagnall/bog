@@ -19,7 +19,7 @@ def load_all_opinions(filenames):
     control_models = opinions['control_models']
 
     if len(filenames) > 1:
-        for fn in filenames:
+        for fn in filenames[1:]:
             opinions = load_opinions(fn)
             names2 = opinions['names']
             control_texts2 = opinions['control_texts']
