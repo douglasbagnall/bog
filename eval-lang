@@ -30,7 +30,7 @@ def shuffle_ranking(links):
     return zip(scores, pairs)
 
 
-def calc_fbcubed(clusters, truth):
+def calc_fbcubed(clusters, truth, quiet=False):
     truth_map = {}
     for t in truth:
         for d in t:
@@ -55,21 +55,22 @@ def calc_fbcubed(clusters, truth):
             rr = float(correct) / len(tcluster)
             p += pp
             r += rr
-            pc = colourise(pp)
-            rc = colourise(rr)
-            if correct > 1:
-                label_colour = MAGENTA
-            else:
-                label_colour = WHITE
+            if not quiet:
+                pc = colourise(pp)
+                rc = colourise(rr)
+                if correct > 1:
+                    label_colour = MAGENTA
+                else:
+                    label_colour = WHITE
 
-            print "%sp%s%2d/%-2d%s" % (label_colour, pc, correct, len(cluster),
-                                       C_NORMAL),
-            print "%sr%s%2d/%-2d%s|%s" % (label_colour, rc, correct,
-                                          len(tcluster), GREY, C_NORMAL),
-            i += 1
-            if (i % 5) == 0:
-                print
-    if (i % 5) != 0:
+                print "%sp%s%2d/%-2d%s" % (label_colour, pc, correct, len(cluster),
+                                           C_NORMAL),
+                print "%sr%s%2d/%-2d%s|%s" % (label_colour, rc, correct,
+                                              len(tcluster), GREY, C_NORMAL),
+                i += 1
+                if (i % 5) == 0:
+                    print
+    if (i % 5) != 0 and not quiet:
         print
     print "recall    %s%s%s" % (colourise(r / n), r / n, C_NORMAL)
     print "precision %s%s%s" % (colourise(p / n), p / n, C_NORMAL)
@@ -87,6 +88,8 @@ def main():
                         help="use this alternative control corpus")
     parser.add_argument('--shuffle', action='store_true',
                         help="randomly shuffle results (for baseline)")
+    parser.add_argument('-q', '--quiet', action='store_true',
+                        help="be relatively quiet")
 
     args = parser.parse_args()
 
@@ -118,7 +121,7 @@ def main():
                 if args.shuffle:
                     clustering = shuffle_clustering(docs, clustering)
                 assert(docs == t['documents'])
-                score = calc_fbcubed(clustering, t['clustering'])
+                score = calc_fbcubed(clustering, t['clustering'], quiet=args.quiet)
                 print "%s F(BCubed) %s" % (pid, score)
                 fbcubed_total += score
 
