@@ -16,6 +16,7 @@ import language
 
 from meta import save_opinions
 
+VALIDATION_ABORT_THRESHOLD = 6.0
 
 
 def full_entropy_matrix(net, texts, ignore_start):
@@ -151,6 +152,10 @@ def train(net, texts, leakage, epochs, leakage_decay,
         print ("validation entropy %.3f±%.3f  diff % .3f±%.3f" % vstats)
         end = time.time()
         print "validation took %d:%02d" % divmod(end - middle, 60)
+        if vstats[0] > VALIDATION_ABORT_THRESHOLD:
+            raise RuntimeError('Validation error %.3f > %.3f; aborting' %
+                               (vstats[0], VALIDATION_ABORT_THRESHOLD))
+
         if validation_reverse_length:
             v_history.append(vstats[2] < 0.0)
             v_history = v_history[-validation_reverse_length:]
