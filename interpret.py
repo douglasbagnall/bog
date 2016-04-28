@@ -18,6 +18,8 @@ def load_all_opinions(filenames):
     control_texts = opinions['control_texts']
     control_models = opinions['control_models']
 
+    text_lengths = opinions.get('text_lengths')
+
     if len(filenames) > 1:
         for fn in filenames[1:]:
             opinions = load_opinions(fn)
@@ -26,6 +28,10 @@ def load_all_opinions(filenames):
             control_models2 = opinions['control_models']
             if (names2 != names):
                 raise ValueError("Multiple input files are not compatible")
+
+            # only one needs to have text lengths
+            if text_lengths is None:
+                text_lengths = opinions.get('text_lengths')
 
             affinities2 = opinions['affinities']
             for k in affinities:
@@ -39,7 +45,7 @@ def load_all_opinions(filenames):
             control_texts[k] *= scale
             control_models[k] *= scale
 
-    return affinities, names, control_texts, control_models
+    return affinities, names, control_texts, control_models, text_lengths
 
 
 def _norm_diagonal(x, *etc):
@@ -183,7 +189,7 @@ def apply_interpret_options(args):
         sys.exit()
 
     opinions = load_all_opinions(args.input)
-    raw, names, control_texts, control_models = opinions[:4]
+    raw, names, control_texts, control_models, text_lengths = opinions
     affinities = {}
     for pid, data in raw.items():
         c_texts = control_texts[pid]
@@ -203,20 +209,19 @@ def apply_interpret_options(args):
             data = cluster_aware_matrix(data, names[pid])
 
         if args.text_length_penalty:
-            if args.text_length_penalty is True:
-                # try to read the lengths from the pickle
-                try:
-                    lengths = opinions[5]
-                except IndexError:
+            if text_lengths is None:
+                print "guessing text_lengths"
+                if args.text_length_penalty is True:
+                    # try to read the lengths from the pickle
                     print "%s doesn't have text lengths saved." % args.input,
                     print "please provide a directory name"
                     print "e.g --text-length-penalty=corpus/pan16/"
                     sys.exit()
+                else:
+                    d = os.path.join(args.text_length_penalty, pid)
+                    lengths = find_text_lengths(names[pid], d)
             else:
-                d = os.path.join(args.text_length_penalty, pid)
-                lengths = find_text_lengths(names[pid], d)
-
-
+                lengths = text_lengths[pid]
             data = text_length_penalty(data, lengths)
 
         affinities[pid] = data
