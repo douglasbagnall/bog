@@ -26,7 +26,7 @@ def calc_fbcubed(truth, clusters):
     r = 0.0
     p = 0.0
     n = 0.0
-    for cluster in clusters.values():
+    for cluster in clusters:
         n += len(cluster)
         for d in cluster:
             tcluster = truth[d]

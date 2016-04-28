@@ -60,14 +60,10 @@ def data_to_clusters(data, threshold, names=None):
     if names is None:
         return clusters
 
-    clusters_d = {}
+    named_clusters = set()
     for c in clusters:
-        k = min(c)
-        if names:
-            clusters_d[k] = frozenset(names[x] for x in c)
-        else:
-            clusters_d[k] = c
-    return clusters_d
+        named_clusters.add(frozenset(names[x] for x in c))
+    return named_clusters
 
 
 def p_to_affinities(input, samples=3000):
