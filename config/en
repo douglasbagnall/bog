@@ -1,0 +1,7 @@
+#-H99 -V2 --presynaptic-noise=0.3
+#-H139 -V2 --presynaptic-noise=0.3
+#-H99 -V2 --presynaptic-noise=0.3 --reverse
+#-H119 -V2 --presynaptic-noise=1.0 --init-method=0
+-H11 -e1  -C20
+-H15 -e3 --presynaptic-noise=0.3  -C20
+-H3 -e2 --presynaptic-noise=0.3  -C20

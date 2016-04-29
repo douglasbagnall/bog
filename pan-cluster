@@ -8,42 +8,62 @@ import errno
 
 from meta import read_info_json
 
-config = {
-    'en' : (
-        ['-H99', '-V2', '--presynaptic-noise=0.3',],
-        ['-H79', '-V3', '--presynaptic-noise=0.1',],
-        ['-H119', '-V2', '--presynaptic-noise=0.3', '--reverse'],
-        ['-H199', '-e10', '--presynaptic-noise=1.0'],
-    ),
-    'gr' : (
-        ['-H99', '-V2', '--presynaptic-noise=0.3',],
-        ['-H79', '-V3', '--presynaptic-noise=0.1',],
-        ['-H119', '-V2', '--presynaptic-noise=0.3', '--reverse'],
-        ['-H199', '-e10', '--presynaptic-noise=1.0'],
-    ),
-    'nl' : (
-        ['-H99', '-V2', '--presynaptic-noise=0.3',],
-        ['-H79', '-V3', '--presynaptic-noise=0.1',],
-        ['-H119', '-V2', '--presynaptic-noise=0.3', '--reverse'],
-        ['-H199', '-e10', '--presynaptic-noise=1.0'],
-    ),
+HERE = os.path.dirname(__file__)
+
+CLUSTERINESS = {
+    'en': -0.1,
+    'gr': -0.0,
+    'nl': -0.25,
 }
 
+def read_config_file(fn):
+    f = open(fn)
+    rows = []
+    for line in f:
+        line = line.strip()
+        if line and not line[0] == '#':
+            rows.append(line.split())
+    f.close()
+    return rows
 
-def write_answers_for_lang(lang, tasks, input_dir, output_dir):
-    for i, c in enumerate(config):
-        dest = os.path.join(output_dir, '%s-%s.pickle' % (lang, i))
-        cmd = ['./learn-corpus', lang,
-               '-C80', '-o' output_dir,
-               '-i' input_dir,
-               '--save', dest,
-               '--batch-size', '40',
-               '-l0.125',
-               '--ignore-start', '10'] + config
+
+def get_commands(lang, input_dir, output_dir):
+    starts = read_config_file('%s/config/%s-common' % (HERE, lang))
+    for cmd in starts:
+        cmd += ['-i', input_dir]
+
+    ends = read_config_file('%s/config/%s' % (HERE, lang))
+    commands = {}
+    i = 0
+    for s in starts:
+        for e in ends:
+            i += 1
+            pickle = '%s/%s-%s.pickle' % (output_dir, lang, i)
+            commands[pickle] = s + e + ['--save', pickle]
+
+    return commands
+
+
+def write_answers_for_lang(lang, input_dir, output_dir):
+    commands = get_commands(lang, input_dir, output_dir)
+
+    pickles = []
+    for pickle, cmd in commands.items():
         print "training:  %s" % ' '.join(cmd)
-        subprocess.check_call(cmd)
+        try:
+            subprocess.check_call(cmd)
+            pickles.append(pickle)
+        except subprocess.CalledProcessError, e:
+            print "failed to create %s with %s" % (pickle, e)
 
+    cmd = ['./emit-opinions', '-o', output_dir, '--clusteriness',
+           str(CLUSTERINESS[lang])]
 
+    for p in pickles:
+        cmd.extend(['-i', p])
+
+    print "running %s" % ' '.join(cmd)
+    subprocess.check_call(cmd)
 
 
 def main():
@@ -54,13 +74,10 @@ def main():
     args = parser.parse_args()
 
     info = read_info_json(args.input_dir)
+    langs = set(x[1] for x in info)
 
-    lang_tasks = {}
-    for subdir, lang, genre in info:
-        tasks = lang_tasks.setdefault(lang, [])
-        tasks.append(subdir)
-
-    for lang, tasks in lang_tasks.items():
-        write_answers_for_lang(lang, tasks, args.input_dir, args.output_dir)
+    for lang in langs:
+        print "looking at %s" % lang
+        write_answers_for_lang(lang, args.input_dir, args.output_dir)
 
 main()
