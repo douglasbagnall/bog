@@ -134,8 +134,8 @@ def calc_ventropy_change(ventropies, prev_ventropies):
 
 def train(net, texts, leakage, epochs, leakage_decay,
           learn_rate_decay, ignore_start, validation_text,
-          validation_reverse_length, opinion_args):
-
+          validation_reverse_length, opinion_args,
+          net_filename):
     prev_ventropies = net.test(validation_text, ignore_start, 1)
     v_history = []
     for i in range(epochs):
@@ -146,7 +146,8 @@ def train(net, texts, leakage, epochs, leakage_decay,
         for name, text in texts.items():
             net.train(text, name, leakage=leakage,
                       ignore_start=ignore_start)
-        net.save()
+        if net_filename:
+            net.save(net_filename)
 
         middle = time.time()
         print "training took %d:%02d" % divmod(middle - start, 60)
@@ -268,10 +269,6 @@ def main():
             if e.errno != errno.EEXIST:
                 raise
 
-    # save the net in the output directory too.
-    if args.filename is None:
-        args.filename = args.save.replace('.pickle', '') + '.net'
-
     if args.epochs is None:
         if args.stop_on_validation_reverse:
             args.epochs = 100
@@ -316,7 +313,8 @@ def main():
 
     train(net, texts, args.leakage, args.epochs, args.leakage_decay,
           args.learn_rate_decay, args.ignore_start, v_text,
-          args.stop_on_validation_reverse, opinion_args)
+          args.stop_on_validation_reverse, opinion_args,
+          args.filename)
 
     opinion = opine(net, texts, problems, args.ignore_start)
     save_opinions(args.save, problems=problems, **opinion)
