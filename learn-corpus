@@ -268,6 +268,10 @@ def main():
             if e.errno != errno.EEXIST:
                 raise
 
+    # save the net in the output directory too.
+    if args.filename is None:
+        args.filename = args.save.replace('.pickle', '') + '.net'
+
     if args.epochs is None:
         if args.stop_on_validation_reverse:
             args.epochs = 100
