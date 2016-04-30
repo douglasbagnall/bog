@@ -81,9 +81,9 @@ def main():
 
     affinities, all_names = apply_interpret_options(args)
 
-    fbcubed_best_sum = 0.0
-    fbcubed_c_sum = 0.0
-    map_sum = 0.0
+    fbcubed_bests = []
+    fbcubed_c = []
+    map_results = []
     true_clusters = None
     true_ranking = None
 
@@ -139,7 +139,7 @@ def main():
             map = calc_map(links, true_ranking[pid], names)
             print "MAP is %f" % map
             ax.set_title("%s: MAP %.3g" % (pid, map))
-            map_sum += map
+            map_results.append(map)
 
         if args.print_links:
             links = array_to_link_pairs(data, names, True)
@@ -206,8 +206,8 @@ def main():
                                                           best_fbcubed_c,
                                                           data.shape[0],
                                                           best_fbcubed_t)
-            fbcubed_best_sum += best_fbcubed
-            fbcubed_c_sum += (best_fbcubed_c / float(data.shape[0]))
+            fbcubed_bests.append(best_fbcubed)
+            fbcubed_c.append(best_fbcubed_c / float(data.shape[0]))
 
         if args.time:
             elapsed = time.time() - start_time
@@ -220,11 +220,14 @@ def main():
             plt.show()
 
     if true_ranking:
-        print "average MAP is       %f" % (map_sum / n_problems)
+        print "average MAP is       %f" % (sum(map_results) / n_problems)
+        print "harmonic mean MAP is %f" % (n_problems /
+                                           sum(1/(x + 1e-99) for x in map_results))
+
 
     if true_clusters is not None:
         print ("average best fbcubed %f at %.1f%%" %
-               (fbcubed_best_sum / n_problems,
-                100.0 * fbcubed_c_sum / n_problems))
+               ((sum(fbcubed_bests) / n_problems,
+                 100.0 * sum(fbcubed_c) / n_problems)))
 
 main()
