@@ -1,16 +1,12 @@
 #!/usr/bin/python
-import cPickle
 import numpy as np
 import matplotlib.pyplot as plt
 import os
 import sys
 import argparse
 import time
-from colour import GREY, C_NORMAL
 
-from meta import load_opinions
-from munge import p_to_affinities, data_to_clusters, array_to_link_pairs
-from munge import clipped_neg_exp, clipped_logistic, shuffle_array
+from munge import data_to_clusters, array_to_link_pairs
 from munge import write_normalised_png
 
 from eval import print_links
