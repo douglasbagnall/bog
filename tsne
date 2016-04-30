@@ -33,7 +33,8 @@ def norm_norm_norm(entropies):
             #(np.linalg.norm, 1, 1),
         ]:
         norm = f(entropies, order, axis)
-        print "f %s order %s axis %s, norm is %s" % (f, order, axis, norm.shape)
+        print "f %s order %s axis %s, norm is %s" % (f, order, axis,
+                                                     norm.shape)
         if np.all(norm):
             entropies /= (norm[:, None] if axis == 1 else norm)
         else:
