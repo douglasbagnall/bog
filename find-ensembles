@@ -4,7 +4,7 @@ import argparse
 import subprocess
 import re
 import os
-import sys
+
 import itertools
 import random
 from interpret import add_core_interpret_options
@@ -24,9 +24,9 @@ def read_one_ensemble(ensemble, extra_args=[]):
     if m:
         return float(m.group(1))
 
+
 def main():
     parser = argparse.ArgumentParser()
-    #parser.add_argument('lang', help="the language to look at")
     parser.add_argument('-g', '--ground-truth-dir',
                         help='cluster ground truth (json)')
     parser.add_argument('-r', '--file-accept-re', default='\.pickle$',
