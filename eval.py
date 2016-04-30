@@ -100,6 +100,7 @@ def calc_map2(links, truth, documents):
             precision += correct / count
             records[d] = [precision, count, correct, links, n_links]
 
+    score = 0
     for d in documents:
         score += records[d][0]
 
