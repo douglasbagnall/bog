@@ -3,7 +3,7 @@
 from meta import read_info_json
 from eval import load_ground_truths
 from language import TRAINING_CORPUS, load_corpus
-from colour import print_GREEN, print_RED
+from colour import print_GREEN, print_RED, GREY, YELLOW, C_NORMAL
 from collections import Counter
 
 
@@ -40,7 +40,7 @@ def main():
         low, high = 0, 1000
         while low < lengths[-1]:
             c = sum(low < x < high for x in lengths)
-            print "<%6d %s" % (high, '#' * c)
+            print "%6d %s%s%s" % (high, YELLOW, '#' * c, C_NORMAL)
             low = high
             high += step
 
