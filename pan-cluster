@@ -1,10 +1,7 @@
 #!/usr/bin/python
 import argparse
 import os
-import sys
 import subprocess
-import json
-import errno
 
 from meta import read_info_json
 
@@ -15,6 +12,7 @@ CLUSTERINESS = {
     'gr': -0.0,
     'nl': -0.25,
 }
+
 
 def read_config_file(fn):
     f = open(fn)
