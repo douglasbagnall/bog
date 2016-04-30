@@ -7,6 +7,7 @@ from meta import makepath
 import math
 import os
 
+
 def write_normalised_png(a, fn, verbose=False):
     from PIL import Image
     hi = np.amax(a)
@@ -131,11 +132,9 @@ def array_to_link_pairs(a, names, include_self=False):
 def cluster_aware_scoring(links, names, depth=3):
     doc_indices = {d: i for i, d in enumerate(names)}
     pairs = sorted(links, reverse=True)
-    affinities = {x: {} for x in names}
     scores = {p:s for s, p in pairs}
     multiples = [pairs]
     for i in range(depth - 2):
-        #print "looking at (3+%d)-uples" % i
         prevuple = multiples[-1]
         newuple = []
         multiples.append(newuple)
@@ -155,7 +154,6 @@ def cluster_aware_scoring(links, names, depth=3):
         uple = [(s * scale, p) for s, p in uple]
         alluple.extend(uple)
         s, p = uple[0]
-        #print "%d: %d, best %s %.3f" % (len(p), len(uple), p, s)
 
     alluple.sort(reverse=True)
     used_links = set()
