@@ -5,17 +5,12 @@ import sys
 HERE = os.path.dirname(__file__)
 sys.path.append(HERE)
 import argparse
-import random
 import numpy as np
-import arguments
 
 from interpret import apply_interpret_options, add_interpret_options
 
-from meta import write_rankings_json, write_clusters_json, load_opinions
-
-from munge import clipped_neg_exp, clipped_logistic
-from munge import (write_normalised_png,
-                   p_to_affinities, data_to_clusters)
+from meta import write_rankings_json, write_clusters_json
+from munge import data_to_clusters
 
 
 def find_clusters(data, clusteriness=0):

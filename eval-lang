@@ -63,8 +63,8 @@ def calc_fbcubed(clusters, truth, quiet=False):
                 else:
                     label_colour = WHITE
 
-                print "%sp%s%2d/%-2d%s" % (label_colour, pc, correct, len(cluster),
-                                           C_NORMAL),
+                print "%sp%s%2d/%-2d%s" % (label_colour, pc, correct,
+                                           len(cluster), C_NORMAL),
                 print "%sr%s%2d/%-2d%s|%s" % (label_colour, rc, correct,
                                               len(tcluster), GREY, C_NORMAL),
                 i += 1
@@ -121,7 +121,8 @@ def main():
                 if args.shuffle:
                     clustering = shuffle_clustering(docs, clustering)
                 assert(docs == t['documents'])
-                score = calc_fbcubed(clustering, t['clustering'], quiet=args.quiet)
+                score = calc_fbcubed(clustering, t['clustering'],
+                                     quiet=args.quiet)
                 print "%s F(BCubed) %s" % (pid, score)
                 fbcubed_total += score
 
