@@ -8,6 +8,7 @@ from munge import p_to_affinities
 from munge import clipped_neg_exp, clipped_logistic, shuffle_array
 from munge import find_text_lengths, text_length_penalty
 from munge import cluster_aware_matrix
+from colour import C_NORMAL, GREY
 
 
 def load_all_opinions(filenames):
