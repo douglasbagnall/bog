@@ -101,10 +101,11 @@ def main():
             p_results[p].append(score)
 
     results.sort(reverse=True)
-    print '=' * 77
-    print "best %d ensembles" % args.n_results
-    for score, ensemble in results[:args.n_results]:
-        print '%.5f %s' % (score, ' '.join(ensemble))
+    if args.ensemble_size > 1:
+        print '=' * 77
+        print "best %d ensembles" % args.n_results
+        for score, ensemble in results[:args.n_results]:
+            print '%.5f %s' % (score, ' '.join(ensemble))
 
     print '=' * 77
     print "best %d pickles" % args.n_results
