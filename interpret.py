@@ -1,14 +1,13 @@
 from operator import neg
-import cPickle
 import numpy as np
 import sys
 import os
 
 from meta import load_opinions
-from munge import p_to_affinities, array_to_link_pairs
+from munge import p_to_affinities
 from munge import clipped_neg_exp, clipped_logistic, shuffle_array
 from munge import find_text_lengths, text_length_penalty
-from munge import write_normalised_png, cluster_aware_matrix
+from munge import cluster_aware_matrix
 
 
 def load_all_opinions(filenames):
@@ -138,14 +137,15 @@ STRATEGIES = {
     'asymmetric': (neg,),
     'simple': (neg, symmetricise),
     'transpose': (np.transpose, neg),
-    'montecarlo': (rmul(100.0), symmetricise, clipped_neg_exp, p_to_affinities),
+    'montecarlo': (rmul(100.0), symmetricise, clipped_neg_exp,
+                   p_to_affinities),
     'montecarlo-10': (rmul(10.0), symmetricise, clipped_neg_exp,
                       p_to_affinities),
     'montecarlo-asymmetric': (rmul(10.0), clipped_neg_exp, p_to_affinities),
     'montecarlo-sigmoid': (neg, rmul(10.0), symmetricise, clipped_logistic,
                            p_to_affinities),
     'montecarlo-sigmoid-asymmetric': (neg, rmul(10.0), clipped_logistic,
-                           p_to_affinities),
+                                      p_to_affinities),
     'sigmoid': (neg, symmetricise, clipped_logistic,),
     'transpose-sigmoid': (np.transpose, neg, clipped_logistic,),
     'sigmoid-asymmetric': (neg, clipped_logistic,),
