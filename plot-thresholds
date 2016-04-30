@@ -220,10 +220,12 @@ def main():
             plt.show()
 
     if true_ranking:
-        print "average MAP is       %f" % (sum(map_results) / n_problems)
-        print "harmonic mean MAP is %f" % (n_problems /
-                                           sum(1/(x + 1e-99) for x in map_results))
-
+        print "average MAP is        %f" % (sum(map_results) / n_problems)
+        print "harmonic mean MAP is  %f" % (n_problems /
+                                            sum(1.0 / max(x, 1e-99)
+                                                for x in map_results))
+        print "geometric mean MAP is %f" % (reduce(float.__mul__, map_results)
+                                            ** (1.0 / n_problems))
 
     if true_clusters is not None:
         print ("average best fbcubed %f at %.1f%%" %
