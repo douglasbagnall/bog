@@ -152,11 +152,7 @@ STRATEGIES = {
 }
 
 
-
-def add_interpret_options(parser, corpus_dir=True):
-    parser.add_argument('-i', '--input', action='append',
-                        help='input filename[s] (pickle)')
-
+def add_core_interpret_options(parser, corpus_dir=True):
     parser.add_argument('-n', '--normalise', default='texts',
                         choices=NORMALISERS.keys(),
                         help='normalise in this dimension')
@@ -165,19 +161,26 @@ def add_interpret_options(parser, corpus_dir=True):
                         choices=STRATEGIES.keys(),
                         help='how to process the affinities')
 
-    parser.add_argument('--list-strategies', action='store_true',
-                        help='print valid strategies and exit')
-
-    parser.add_argument('--shuffle', action='store_true',
-                        help="randomly shuffle results (for baseline)")
-
     parser.add_argument('--cluster-aware', action='store_true',
                         help="use cluster aware scoring")
 
     parser.add_argument('--text-length-penalty', const=corpus_dir, nargs='?',
                         help=("penalise short texts "
                               "(optional: dir to read from)"))
+    return parser
 
+
+def add_interpret_options(parser, corpus_dir=True):
+    parser.add_argument('-i', '--input', action='append',
+                        help='input filename[s] (pickle)')
+
+    parser.add_argument('--list-strategies', action='store_true',
+                        help='print valid strategies and exit')
+
+    parser.add_argument('--shuffle', action='store_true',
+                        help="randomly shuffle results (for baseline)")
+
+    add_core_interpret_options(parser, corpus_dir)
     return parser
 
 

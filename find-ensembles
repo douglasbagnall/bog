@@ -1,0 +1,107 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+import argparse
+import subprocess
+import re
+import os
+import sys
+import itertools
+import random
+from interpret import add_core_interpret_options
+from language import TRAINING_CORPUS
+
+TRUTH_DIR = 'corpus/pan16-author-clustering-training-dataset-2016-02-17/truth/'
+
+def read_one_ensemble(ensemble, extra_args=[]):
+    cmd = ['./plot-thresholds', '-m', '--no-plot', '--no-fbcubed',
+           '-g', TRUTH_DIR] + extra_args
+    for pickle in ensemble:
+        cmd.extend(['-i', pickle])
+    #XXX could do more than one in parallel, using Popen
+    s = subprocess.check_output(cmd)
+    m = re.search('average MAP is\s+(\d+\.\d+)', s)
+    #print s, m
+    if m:
+        return float(m.group(1))
+
+def main():
+    parser = argparse.ArgumentParser()
+    #parser.add_argument('lang', help="the language to look at")
+    parser.add_argument('-g', '--ground-truth-dir',
+                        help='cluster ground truth (json)')
+    parser.add_argument('-r', '--file-accept-re', default='\.pickle$',
+                        help='use pickles matching this regex')
+    parser.add_argument('-d', '--pickle-directory', default='results',
+                        help='where to look for pickles')
+    parser.add_argument('-E', '--ensemble-size', type=int, default=1,
+                        help="test ensembles of this size")
+    parser.add_argument('-N', '--max-tests', type=int, default=1000,
+                        help="don't try more than this many ensembles")
+    parser.add_argument('--n-results', type=int, default=20,
+                        help="show only this many results")
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help="print more")
+
+    add_core_interpret_options(parser, corpus_dir=TRAINING_CORPUS)
+
+    args = parser.parse_args()
+
+    accept_pickle = re.compile(args.file_accept_re).search
+
+    extra_args = []
+    vargs = vars(args)
+    for k in ('normalise', 'strategy', 'text_length_penalty',
+              'cluster_aware'):
+        if vargs[k] != parser.get_default(k):
+            k2 = '--' + k.replace('_', '-')
+            extra_args += [k2, vargs[k]]
+
+    if extra_args:
+        print "using extra args: %s" % ' '.join(extra_args)
+
+    pickles = []
+    for d, dirnames, filenames in os.walk(args.pickle_directory):
+        for fn in filenames:
+            if accept_pickle(fn):
+                pickles.append(os.path.join(d, fn))
+
+    # This will blow up if there are too many results. At which point,
+    # obviously, something else would be better.
+    # formula is n! / ((n - k)! k!)
+    # e.g. if n == 25, k == 3: (25 * 24 * 23) / (1 * 2 * 3)
+    ensembles = list(itertools.combinations(pickles, args.ensemble_size))
+    random.shuffle(ensembles)
+    n_ensembles = min(len(ensembles),
+                      args.max_tests)
+    print ("There are %d pickles, %d ensembles, looking at %d" %
+           (len(pickles), len(ensembles), n_ensembles))
+    ensembles = ensembles[:n_ensembles]
+
+    results = []
+    p_results = {x: [] for x in pickles}
+    for i, ensemble in enumerate(ensembles):
+        score = read_one_ensemble(ensemble, extra_args)
+        if args.verbose:
+            print score, ' '.join(ensemble)
+        if i % 100 == 99:
+            print "%s/%s" % (i + 1, n_ensembles)
+        results.append((score, ensemble))
+        for p in ensemble:
+            p_results[p].append(score)
+
+    results.sort(reverse=True)
+    print '=' * 77
+    print "best %d ensembles" % args.n_results
+    for score, ensemble in results[:args.n_results]:
+        print '%.5f %s' % (score, ' '.join(ensemble))
+
+    print '=' * 77
+    print "best %d pickles" % args.n_results
+    pickle_scores = [(sum(v) / len(v), k) for k, v in p_results.items()
+                     if v]
+    pickle_scores.sort(reverse=True)
+    for score, pickle in pickle_scores[:args.n_results]:
+        print '%.5f %s' % (score, pickle)
+
+
+main()
