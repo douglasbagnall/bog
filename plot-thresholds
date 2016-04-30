@@ -38,6 +38,7 @@ def calc_fbcubed(truth, clusters):
 
 LINE_WIDTH = 0.5
 
+
 def main():
     parser = argparse.ArgumentParser()
     add_interpret_options(parser, corpus_dir=TRAINING_CORPUS)
@@ -72,7 +73,6 @@ def main():
     parser.add_argument('--png-save-dir',
                         help="save array images here")
 
-
     args = parser.parse_args()
 
     affinities, all_names = apply_interpret_options(args)
@@ -91,7 +91,8 @@ def main():
             true_clusters = {}
             for pid in affinities:
                 true_clusters[pid] = {}
-                fn = os.path.join(args.ground_truth_dir, pid, 'clustering.json')
+                fn = os.path.join(args.ground_truth_dir, pid,
+                                  'clustering.json')
                 documents, clusters = load_clustering_json(fn)
                 for cluster in clusters:
                     for doc in cluster:
@@ -104,7 +105,8 @@ def main():
                 true_ranking[pid] = load_ranking_json(fn)
 
     elif args.show_map or args.print_links:
-        print ("you need to supply --ground-truth-dir for --show-map or --print_links")
+        print ("you need to supply --ground-truth-dir for "
+               "--show-map or --print_links")
         sys.exit(1)
 
     n_problems = len(affinities)
