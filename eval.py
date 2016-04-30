@@ -2,6 +2,7 @@ import json
 import os
 from colour import print_GREEN, print_YELLOW, print_CYAN, RED
 
+
 def load_clustering_json(fn):
     f = open(fn)
     raw_clusters = json.load(f)
@@ -120,8 +121,8 @@ def print_links(links, truth, documents):
         if pair in self_links or pair in true_links:
             if bad_run:
                 print("...skipped %d false links %.3f-%.3f" % (len(bad_run),
-                                                              bad_run[0],
-                                                              bad_run[-1]))
+                                                               bad_run[0],
+                                                               bad_run[-1]))
                 bad_run = []
             if pair in true_links:
                 print_GREEN("%.3f %s TRUE link" % (score, spair))
