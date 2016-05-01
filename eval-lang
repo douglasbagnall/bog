@@ -98,33 +98,37 @@ def main():
     fbcubed_total = 0.0
     map_total = 0.0
     n = 0.0
-
+    files = []
     for d, dirnames, filenames in os.walk(args.input_dir):
+        for fn in filenames:
+            files.append((d, fn))
+
+    files.sort()
+    for d, fn in files:
         pid = os.path.basename(d)
         t = truths.get(pid)
         if t is None:
             continue
-        for fn in filenames:
-            ffn = os.path.join(d, fn)
-            if fn == 'ranking.json':
-                ranking = load_ranking_json(ffn)
-                if args.shuffle:
-                    ranking = shuffle_ranking(ranking)
+        ffn = os.path.join(d, fn)
+        if fn == 'ranking.json':
+            ranking = load_ranking_json(ffn)
+            if args.shuffle:
+                ranking = shuffle_ranking(ranking)
 
-                score = calc_map(ranking, t['ranking'], t['documents'])
-                print "%s MAP %s" % (pid, score)
-                n += 1.0
-                map_total += score
+            score = calc_map(ranking, t['ranking'], t['documents'])
+            print "%s MAP %s" % (pid, score)
+            n += 1.0
+            map_total += score
 
-            elif fn == 'clustering.json':
-                docs, clustering = load_clustering_json(ffn)
-                if args.shuffle:
-                    clustering = shuffle_clustering(docs, clustering)
-                assert(docs == t['documents'])
-                score = calc_fbcubed(clustering, t['clustering'],
-                                     quiet=args.quiet)
-                print "%s F(BCubed) %s" % (pid, score)
-                fbcubed_total += score
+        elif fn == 'clustering.json':
+            docs, clustering = load_clustering_json(ffn)
+            if args.shuffle:
+                clustering = shuffle_clustering(docs, clustering)
+            assert(docs == t['documents'])
+            score = calc_fbcubed(clustering, t['clustering'],
+                                 quiet=args.quiet)
+            print "%s F(BCubed) %s" % (pid, score)
+            fbcubed_total += score
 
     print "FBCubed mean %s" % (fbcubed_total / n)
     print "MAP mean     %s" % (map_total / n)
