@@ -115,7 +115,7 @@ def main():
             if args.shuffle:
                 ranking = shuffle_ranking(ranking)
 
-            score = calc_map(ranking, t['ranking'], t['documents'])
+            score = calc_map(ranking, t['ranking'])
             print "%s MAP %s" % (pid, score)
             n += 1.0
             map_total += score

@@ -134,7 +134,7 @@ def main():
 
         if args.show_map:
             links = array_to_link_pairs(data, names)
-            map = calc_map(links, true_ranking[pid], names)
+            map = calc_map(links, true_ranking[pid])
             print "MAP is %f" % map
             ax.set_title("%s: MAP %.3g" % (pid, map))
             map_results.append(map)

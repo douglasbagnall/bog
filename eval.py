@@ -52,60 +52,62 @@ def load_ground_truths(srcdir):
     return truths
 
 
-def avg_precision(d, n, links, truth):
+def avg_precision(d, pairs, truth):
     precision = 0.0
     count = 0.0
     correct = 0.0
-    for score, pair in links:
+    truth = set(x for x in truth if d in x)
+    for pair in pairs:
         if d not in pair:
             continue
         count += 1.0
         if pair in truth:
             correct += 1.0
-        precision += correct / count
-        if correct == len(truth):
-            break
-
-    return precision / count
-
-
-def calc_map(links, truth, documents):
-    links = sorted(links, reverse=True)
-    true_links = set(x[1] for x in truth)
-    score = 0.0
-    for d in documents:
-        score += avg_precision(d, len(documents), links, true_links)
-
-    return score / len(documents)
-
-
-def calc_map2(links, truth, documents):
-    true_links = set(x[1] for x in truth)
-
-    records = {}
-    for d in documents:
-        records[d] = [0.0, 0.0, 0.0, 0.0]
-        links = set(x for x in true_links if d in x)
-        records[d].append(links)
-        records[d].append(len(links))
-
-    for _, pair in links:
-        for d in pair:
-            record = records[d]
-            precision, count, correct, links, n_links = record
-            if correct == n_links:
-                continue
-            count += 1.0
-            if pair in links:
-                correct += 1.0
             precision += correct / count
-            records[d] = [precision, count, correct, links, n_links]
+            if correct == len(truth):
+                break
 
-    score = 0
-    for d in documents:
-        score += records[d][0]
+    return precision / correct
+
+
+def calc_map_individual(links, truth, documents):
+    true_links = set(p for s, p in truth)
+    true_docs = set()
+    for d1, d2 in true_links:
+        true_docs.add(d1)
+        true_docs.add(d2)
+
+    pairs = {}
+    for s, p in sorted(links, reverse=True):
+        p1, p2 = p
+        if p1 in true_docs:
+            pairs.setdefault(p1, []).append(p)
+        if p2 in true_docs:
+            pairs.setdefault(p2, []).append(p)
+
+    score = 0.0
+    for d in true_docs:
+        score += avg_precision(d, pairs[d], true_links)
 
     return score / len(documents)
+
+
+def calc_map(links, truth):
+    if not truth or not links:
+        return 0.0
+    true_links = set(p for s, p in truth)
+    count = 0.0
+    correct = 0.0
+    score = 0.0
+    for s, p in sorted(links, reverse=True):
+        count += 1.0
+        if p in true_links:
+            correct += 1.0
+            score += correct / count
+            if correct == len(true_links):
+                break
+
+    return score / len(true_links)
 
 
 def print_links(links, truth, documents):
