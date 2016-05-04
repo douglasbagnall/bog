@@ -155,6 +155,7 @@ STRATEGIES = {
     'montecarlo-sigmoid-asymmetric': (neg, rmul(10.0), clipped_logistic,
                                       p_to_affinities),
     'sigmoid': (neg, symmetricise, clipped_logistic,),
+    'exp': (symmetricise, clipped_neg_exp),
     'transpose-sigmoid': (np.transpose, neg, clipped_logistic,),
     'sigmoid-asymmetric': (neg, clipped_logistic,),
 }
