@@ -129,10 +129,11 @@ def array_to_link_pairs(a, names, include_self=False):
 
 # Connecting
 
-def cluster_aware_scoring(links, names, depth=3):
+def cluster_aware_scoring(links, names, depth=3, power=1):
     doc_indices = {d: i for i, d in enumerate(names)}
-    pairs = sorted(links, reverse=True)
-    scores = {p:s for s, p in pairs}
+    powerlinks = [(s ** power, p) for s, p in links]
+    pairs = sorted(powerlinks, reverse=True)
+    scores = {p: s for s, p in pairs}
     multiples = [pairs]
     for i in range(depth - 2):
         prevuple = multiples[-1]
@@ -146,14 +147,15 @@ def cluster_aware_scoring(links, names, depth=3):
                     new_s += scores[(d, new_d)]
                 newuple.append((new_s, p + (new_d,)))
 
+    invpower = 1.0 / power
     alluple = []
     for i, uple in enumerate(multiples):
         uple.sort(reverse=True)
-        # n! / r! / (n-r)!
+        #    scale == 1 / (n! / r! / (n-r)!), and here r == 2
+        # so scale == 2 / (n! / n-2!)  ==  2 / (n * (n-1))
         scale = 2.0 / ((i + 2) * (i + 1))
         uple = [(s * scale, p) for s, p in uple]
         alluple.extend(uple)
-        s, p = uple[0]
 
     alluple.sort(reverse=True)
     used_links = set()
@@ -163,7 +165,7 @@ def cluster_aware_scoring(links, names, depth=3):
             if p in used_links:
                 continue
             used_links.add(p)
-            out.append((s, p))
+            out.append((s ** invpower, p))
     return out
 
 
@@ -182,9 +184,9 @@ def links_to_matrix(links, names):
     return a
 
 
-def cluster_aware_matrix(data, names):
+def cluster_aware_matrix(data, names, power):
     links = array_to_link_pairs(data, names)
-    links = cluster_aware_scoring(links, names)
+    links = cluster_aware_scoring(links, names, power=power)
     return links_to_matrix(links, names)
 
 

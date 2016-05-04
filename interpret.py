@@ -170,8 +170,8 @@ def add_core_interpret_options(parser, corpus_dir=True):
                         choices=STRATEGIES.keys(),
                         help='how to process the affinities')
 
-    parser.add_argument('--cluster-aware', action='store_true',
-                        help="use cluster aware scoring")
+    parser.add_argument('--cluster-aware', type=float, default=0,
+                        help="use cluster aware scoring (using this L-norm)")
 
     parser.add_argument('--text-length-penalty', const=corpus_dir, nargs='?',
                         help=("penalise short texts "
@@ -218,7 +218,8 @@ def apply_interpret_options(args):
             data = func(data)
 
         if args.cluster_aware:
-            data = cluster_aware_matrix(data, names[pid])
+            data = cluster_aware_matrix(data, names[pid],
+                                        power=args.cluster_aware)
 
         if args.text_length_penalty:
             if text_lengths is None:
