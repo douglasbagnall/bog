@@ -66,7 +66,7 @@ def main():
               'cluster_aware'):
         if vargs[k] != parser.get_default(k):
             k2 = '--' + k.replace('_', '-')
-            extra_args += [k2, vargs[k]]
+            extra_args += [k2, str(vargs[k])]
 
     if extra_args:
         print "using extra args: %s" % ' '.join(extra_args)
