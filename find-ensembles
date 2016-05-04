@@ -16,12 +16,15 @@ SCORE_REGEXES = {
     'geometric': r'geometric mean MAP is\s+(\d+\.\d+)',
     'harmonic': r'harmonic mean MAP is\s+(\d+\.\d+)',
     'arithmetic': r'average MAP is\s+(\d+\.\d+)',
+    'fbcubed': r'average best fbcubed\s+(\d+\.\d+)',
 }
 
 
-def read_one_ensemble(ensemble, extra_args, pattern):
-    cmd = ['./plot-thresholds', '-m', '--no-plot', '--no-fbcubed',
+def read_one_ensemble(ensemble, extra_args, pattern, fbcubed=False):
+    cmd = ['./plot-thresholds', '-m', '--no-plot',
            '-g', TRUTH_DIR] + extra_args
+    if not fbcubed:
+        cmd.append('--no-fbcubed')
     for pickle in ensemble:
         cmd.extend(['-i', pickle])
     #XXX could do more than one in parallel, using Popen
@@ -75,6 +78,7 @@ def main():
                 pickles.append(os.path.join(d, fn))
 
     pattern = SCORE_REGEXES[args.mean]
+    fbcubed = args.mean == 'fbcubed'
 
     # This will blow up if there are too many results. At which point,
     # obviously, something else would be better.
@@ -91,7 +95,8 @@ def main():
     results = []
     p_results = {x: [] for x in pickles}
     for i, ensemble in enumerate(ensembles):
-        score = read_one_ensemble(ensemble, extra_args, pattern)
+        score = read_one_ensemble(ensemble, extra_args, pattern,
+                                  fbcubed=fbcubed)
         if args.verbose:
             print score, ' '.join(ensemble)
         if i % 100 == 99:
