@@ -62,6 +62,13 @@ def _norm_models(x, control_texts, control_models):
     return x - control_models
 
 
+def _norm_text_zero_mean(x, control_texts, control_models):
+    x -= control_texts
+    s = x.sum(0)
+    s /= len(s)
+    return x - s
+
+
 def _norm_both(x, control_texts, control_models):
     return 2 * x - control_texts - control_models
 
