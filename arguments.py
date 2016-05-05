@@ -91,7 +91,7 @@ def add_rnn_args(add_arg):
 def add_common_args(add_arg, input_dir=True):
     add_arg('lang', help="the language to look at")
     if input_dir:
-        add_arg('-i', '--input-dir', default=language.TRAINING_CORPUS,
+        add_arg('-i', '--input-dir',
                 help='find problems here')
 
     add_arg('-o', '--output-dir', help='write results here')
