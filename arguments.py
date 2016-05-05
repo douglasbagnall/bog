@@ -35,7 +35,7 @@ def add_rnn_args(add_arg):
     add_arg('--enable-fp-exceptions', action='store_true',
             help="crash on bad floating point errors")
 
-    add_arg('--batch-size', type=int, default=20, metavar='<int>',
+    add_arg('--batch-size', type=int, default=30, metavar='<int>',
             help="mini-batch size")
 
     add_arg('--temporal-pgm-dump', action='store_true',
