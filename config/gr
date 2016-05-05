@@ -1,4 +1,4 @@
--H99 -V2 --presynaptic-noise=0.3
--H139 -V5 --presynaptic-noise=0.3
--H119 -V4 --presynaptic-noise=0.3 --reverse
+-H239 -V3 --presynaptic-noise=0.3 --batch-size 60
+-H279 -V4 --batch-size 80 --presynaptic-noise=0.5 --init-method=0
+-H139 -V5 --presynaptic-noise=0.3 --reverse -C60 --batch-size 40
 -H159 -V3 --presynaptic-noise=1.0
