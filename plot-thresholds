@@ -244,7 +244,7 @@ def main():
             sys.exit()
 
         if not args.no_plot:
-            plt.legend(loc='center left', numpoints=1, frameon=False,
+            plt.legend(loc='upper left', numpoints=1, frameon=False,
                        borderpad=0)
             plt.show()
 
