@@ -15,9 +15,9 @@ from munge import data_to_clusters
 
 def find_clusters(data, clusteriness=0):
     diagonal = np.diagonal(data)
-    d_worst = np.min(diagonal)
+    d_median = np.median(diagonal)
     median = np.median(data)
-    threshold = d_worst - clusteriness * (d_worst - median)
+    threshold = d_median - clusteriness * (d_median - median)
     return data_to_clusters(data, threshold)
 
 
