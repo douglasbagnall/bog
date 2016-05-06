@@ -10,6 +10,20 @@ from munge import find_text_lengths, text_length_penalty
 from munge import cluster_aware_matrix
 from colour import C_NORMAL, GREY
 
+def threshold_to_clusteriness(data, threshold):
+    diagonal = np.diagonal(data)
+    d_median = np.median(diagonal)
+    median = np.median(data)
+    if median == d_median:
+        print "undefined clusteriness!"
+        return 0
+    return (d_median - threshold) / (d_median - median)
+
+def clusteriness_to_threshold(data, clusteriness):
+    diagonal = np.diagonal(data)
+    d_median = np.median(diagonal)
+    median = np.median(data)
+    return d_median - clusteriness * (d_median - median)
 
 def load_all_opinions(filenames):
     opinions = load_opinions(filenames[0])

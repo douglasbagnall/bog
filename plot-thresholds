@@ -6,6 +6,7 @@ import sys
 import argparse
 import time
 
+import colour
 from munge import data_to_clusters, array_to_link_pairs
 from munge import write_normalised_png
 
@@ -14,6 +15,7 @@ from eval import load_clustering_json, load_ranking_json, calc_map
 
 from interpret import apply_interpret_options
 from interpret import add_interpret_options
+from interpret import clusteriness_to_threshold, threshold_to_clusteriness
 
 from language import TRAINING_CORPUS
 
@@ -73,12 +75,18 @@ def main():
     parser.add_argument('--png-save-dir',
                         help="save array images here")
 
+    parser.add_argument('--clusteriness', type=float,
+                        help="show fbcubed at this clusteriness")
+
     args = parser.parse_args()
 
     affinities, all_names = apply_interpret_options(args)
 
     fbcubed_bests = []
+    fbcubed_lasts = []
+    fbcubed_clusteriness = []
     fbcubed_c = []
+    fbcubed_c_score = []
     map_results = []
     true_clusters = None
     true_ranking = None
@@ -112,7 +120,7 @@ def main():
     n_problems = len(affinities)
 
     for pid, data in affinities.items():
-        print pid
+        colour.print_RED(pid)
         names = all_names[pid]
 
         if args.png_save_dir:
@@ -200,12 +208,29 @@ def main():
                         best_fbcubed_t = t
                 fbcubed.append(score)
             plot(fbcubed, 'b.', linewidth=LINE_WIDTH, label='fbcubed')
-            print "FBCUBED best: %.3f at %d/%d (%.2f)" % (best_fbcubed,
-                                                          best_fbcubed_c,
-                                                          data.shape[0],
-                                                          best_fbcubed_t)
+
+            clusteriness = threshold_to_clusteriness(data, best_fbcubed_t)
+            print ("FBCUBED best: %.3f at %d/%d (threshold %.2f, "
+                   "clusteriness %.3g, %d%% last)" %
+                   (best_fbcubed,
+                    best_fbcubed_c,
+                    data.shape[0],
+                    best_fbcubed_t,
+                    clusteriness,
+                    100 * best_fbcubed / score))
             fbcubed_bests.append(best_fbcubed)
             fbcubed_c.append(best_fbcubed_c / float(data.shape[0]))
+            fbcubed_lasts.append(score)
+            fbcubed_clusteriness.append(clusteriness)
+            if args.clusteriness is not None:
+                t2 = clusteriness_to_threshold(data, args.clusteriness)
+                clusters = data_to_clusters(data, t2, names)
+                c_score = calc_fbcubed(true_clusters[pid], clusters)
+                fbcubed_c_score.append(c_score)
+                colour.print_CYAN("fbcubed at clusteriness %.3g "
+                                  "(threshold %.3g): %3g (%d%%)" %
+                                  (args.clusteriness, t2, c_score,
+                                   0.5 + 100.0 * c_score / score))
 
         if args.time:
             elapsed = time.time() - start_time
@@ -226,8 +251,15 @@ def main():
                                             ** (1.0 / n_problems))
 
     if true_clusters is not None:
-        print ("average best fbcubed %f at %.1f%%" %
-               ((sum(fbcubed_bests) / n_problems,
-                 100.0 * sum(fbcubed_c) / n_problems)))
+        ave_best = sum(fbcubed_bests) / n_problems
+        print ("average best fbcubed %f at %.1f%% (%d%% last score) "
+               "ave. clusteriness %.3g" %
+               (ave_best, 100.0 * sum(fbcubed_c) / n_problems,
+                0.5 + 100.0 * sum(fbcubed_bests) / sum(fbcubed_lasts),
+                sum(fbcubed_clusteriness) / n_problems))
+    if fbcubed_c_score:
+        print ("average fbcubed at clusteriness %.3g: %3g (%d%%)" %
+               (args.clusteriness, sum(fbcubed_c_score) / n_problems,
+                0.5 + 100.0 * sum(fbcubed_c_score) / sum(fbcubed_lasts)))
 
 main()
