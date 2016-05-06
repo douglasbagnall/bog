@@ -203,49 +203,22 @@ def array_to_link_pairs_cluster_aware(a, names, power=1.0):
     return links_out
 
 
-def cluster_aware_matrix(data, names, power):
+def scale_array01(x):
+    hi = np.amax(x)
+    lo = np.amin(x)
+    if lo == hi:
+        return np.zeros_like(x)
+    return (x - lo) / (hi - lo)
+
+
+def cluster_aware_matrix(data, names, power, mix=1.0):
     links = array_to_link_pairs_cluster_aware(data, names, power)
-    return links_to_matrix(links, names)
-
-
-def cluster_aware_scoring(links, names, depth=3, power=1):
-    doc_indices = {d: i for i, d in enumerate(names)}
-    powerlinks = [(s ** power, p) for s, p in links]
-    pairs = sorted(powerlinks, reverse=True)
-    scores = {p: s for s, p in pairs}
-    multiples = [pairs]
-    for i in range(depth - 2):
-        prevuple = multiples[-1]
-        newuple = []
-        multiples.append(newuple)
-        for s, p in prevuple:
-            j = doc_indices[p[-1]] + 1
-            for new_d in names[j:]:
-                new_s = s
-                for d in p:
-                    new_s += scores[(d, new_d)]
-                newuple.append((new_s, p + (new_d,)))
-
-    invpower = 1.0 / power
-    alluple = []
-    for i, uple in enumerate(multiples):
-        uple.sort(reverse=True)
-        #    scale == 1 / (n! / r! / (n-r)!), and here r == 2
-        # so scale == 2 / (n! / n-2!)  ==  2 / (n * (n-1))
-        scale = 2.0 / ((i + 2) * (i + 1))
-        uple = [(s * scale, p) for s, p in uple]
-        alluple.extend(uple)
-
-    alluple.sort(reverse=True)
-    used_links = set()
-    out = []
-    for s, uple in alluple:
-        for p in combinations(uple, 2):
-            if p in used_links:
-                continue
-            used_links.add(p)
-            out.append((s ** invpower, p))
-    return out
+    cdata = links_to_matrix(links, names)
+    if mix == 1.0:
+        return cdata
+    cdata = scale_array01(cdata)
+    data = scale_array01(data)
+    return cdata * mix + data * (1.0 - mix)
 
 
 def links_to_matrix(links, names):
@@ -261,12 +234,6 @@ def links_to_matrix(links, names):
         a[x, y] = s
         a[y, x] = s
     return a
-
-
-def old_cluster_aware_matrix(data, names, power):
-    links = array_to_link_pairs(data, names)
-    links = cluster_aware_scoring(links, names, power=power)
-    return links_to_matrix(links, names)
 
 
 def find_text_lengths(names, dirname):

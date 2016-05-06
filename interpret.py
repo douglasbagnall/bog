@@ -219,7 +219,8 @@ def apply_interpret_options(args):
 
         if args.cluster_aware:
             data = cluster_aware_matrix(data, names[pid],
-                                        power=args.cluster_aware)
+                                        power=args.cluster_aware,
+                                        mix=1.0)
 
         if args.text_length_penalty:
             if text_lengths is None:
