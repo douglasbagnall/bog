@@ -54,8 +54,10 @@ def write_answers_for_lang(lang, input_dir, output_dir):
         except subprocess.CalledProcessError, e:
             print "failed to create %s with %s" % (pickle, e)
 
-    cmd = ['./emit-opinions', '-o', output_dir, '--clusteriness',
-           str(CLUSTERINESS[lang])]
+    cmd = ['./emit-opinions', '-o', output_dir,
+           '--clusteriness', str(CLUSTERINESS[lang]),
+           '--strategy', 'exp',
+           '-n', 'scale_l2']
 
     for p in pickles:
         cmd.extend(['-i', p])

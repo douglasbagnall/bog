@@ -254,7 +254,7 @@ def text_length_penalty(data, lengths):
     """reduce the score of short texts and their models (towards zero),
     because they can't be certain about anything.
     """
-    penalty = [1.0 - 2.0 / math.log(s) for s in lengths]
+    penalty = [1.0 - 1.0 / math.log(s) for s in lengths]
 
     p = np.array(penalty)
     p2 = p.reshape(p.shape + (1,))

@@ -10,10 +10,11 @@ import numpy as np
 from interpret import apply_interpret_options, add_interpret_options
 
 from meta import write_rankings_json, write_clusters_json
-from munge import data_to_clusters
+from munge import data_to_clusters, cluster_aware_matrix
 
 
-def find_clusters(data, clusteriness=0):
+def find_clusters(data, names, clusteriness=0):
+    data = cluster_aware_matrix(data, names, 2)
     diagonal = np.diagonal(data)
     d_median = np.median(diagonal)
     median = np.median(data)
@@ -24,7 +25,7 @@ def find_clusters(data, clusteriness=0):
 def write_opinions(output_dir, affinities, all_names, clusteriness):
     for pid, data in affinities.items():
         names = all_names[pid]
-        clusters = find_clusters(data, clusteriness)
+        clusters = find_clusters(data, names, clusteriness)
         dest_dir = os.path.join(output_dir, pid)
         write_clusters_json(clusters, names, dest_dir)
         write_rankings_json(data, names, dest_dir)
