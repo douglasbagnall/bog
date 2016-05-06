@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 import random
 import numpy as np
-from itertools import combinations
 from meta import makepath
 import math
 import os
@@ -128,7 +127,6 @@ def array_to_link_pairs(a, names, include_self=False):
 
 
 def add_to_cluster(p, linkmap, p2, scores):
-    #print "adding %s to %s" % (p, c)
     c = linkmap[p2]
     s, x = c
     if p not in x:
@@ -156,11 +154,8 @@ def array_to_link_pairs_cluster_aware(a, names, power=1.0):
 
     linkmap = {}
     inv_power = 1.0 / power
-    # how many candidates to consider
-    max_n = len(names) * len(names)
 
-    for i, pair in enumerate(pairs[:max_n]):
-        score, link = pair
+    for score, link in pairs:
         p1, p2 = link
         if p1 in linkmap and p2 in linkmap:
             c1 = linkmap[p1]
@@ -189,12 +184,11 @@ def array_to_link_pairs_cluster_aware(a, names, power=1.0):
             s = add_to_cluster(p2, linkmap, p1, scores)
             links_out.append((s ** inv_power, link))
 
-
         elif p2 in linkmap:
             s = add_to_cluster(p1, linkmap, p2, scores)
             links_out.append((s ** inv_power, link))
 
-        else :
+        else:
             c = [score, set(link)]
             linkmap[p1] = c
             linkmap[p2] = c
