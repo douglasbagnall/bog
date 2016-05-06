@@ -211,14 +211,10 @@ def scale_array01(x):
     return (x - lo) / (hi - lo)
 
 
-def cluster_aware_matrix(data, names, power, mix=1.0):
+def cluster_aware_matrix(data, names, power):
     links = array_to_link_pairs_cluster_aware(data, names, power)
     cdata = links_to_matrix(links, names)
-    if mix == 1.0:
-        return cdata
-    cdata = scale_array01(cdata)
-    data = scale_array01(data)
-    return cdata * mix + data * (1.0 - mix)
+    return cdata
 
 
 def links_to_matrix(links, names):
