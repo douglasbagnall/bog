@@ -38,9 +38,6 @@ def calc_fbcubed(truth, clusters):
     return 2.0 / (rp + rr)
 
 
-LINE_WIDTH = 0.5
-
-
 def main():
     parser = argparse.ArgumentParser()
     add_interpret_options(parser, corpus_dir=TRAINING_CORPUS)
@@ -68,6 +65,9 @@ def main():
 
     parser.add_argument('--no-plot', action='store_true',
                         help="don't actually plot")
+
+    parser.add_argument('--threshold-x', action='store_true',
+                        help="use the threshold as X axis")
 
     parser.add_argument('--no-fbcubed', action='store_true',
                         help="don't do fbcubed even with ground truth")
@@ -135,10 +135,16 @@ def main():
         if args.no_plot:
             def plot(*args, **kwargs):
                 pass
+        elif args.threshold_x:
+            def plot(*args, **kwargs):
+                y, point = args[:2]
+                ax.scatter(thresholds, y,
+                           color=point[0],
+                           marker=point[1],
+                           *args[2:], **kwargs)
         else:
             plot = ax.plot
-
-        plot(thresholds, 'r.', linewidth=LINE_WIDTH, label='thresholds')
+            plot(thresholds, 'r.', label='thresholds')
 
         if args.show_map:
             links = array_to_link_pairs(data, names)
@@ -153,7 +159,7 @@ def main():
 
         if args.delta:
             deltas = np.diff(thresholds) * 10
-            plot(deltas, 'c.', linewidth=LINE_WIDTH, label='delta')
+            plot(list(deltas) + [0], 'c.', label='delta')
 
         if args.n_clusters:
             n_clusters = []
@@ -173,7 +179,7 @@ def main():
                 prev_t = t
                 prev_clusters = clusters
 
-            plot(n_clusters, 'g.', linewidth=LINE_WIDTH, label='n clusters')
+            plot(n_clusters, 'g.', label='n clusters')
 
         if args.n_links:
             n_links = []
@@ -189,7 +195,7 @@ def main():
                 prev_links = links
                 prev_t = t
                 n_links.append(links * scale)
-            plot(n_links, 'y.', linewidth=LINE_WIDTH, label='n links')
+            plot(n_links, 'y.', label='n links')
 
         if true_clusters is not None:
             fbcubed = []
@@ -207,7 +213,7 @@ def main():
                         best_fbcubed_c = len(clusters)
                         best_fbcubed_t = t
                 fbcubed.append(score)
-            plot(fbcubed, 'b.', linewidth=LINE_WIDTH, label='fbcubed')
+            plot(fbcubed, 'b.', label='fbcubed')
 
             clusteriness = threshold_to_clusteriness(data, best_fbcubed_t)
             print ("FBCUBED best: %.3f at %d/%d (threshold %.2f, "
