@@ -126,16 +126,33 @@ def array_to_link_pairs(a, names, include_self=False):
     return links
 
 
+def add_to_links(links_out, s, new_p, c):
+    old_p = c[1].difference(new_p)
+    for x in new_p:
+        for y in old_p:
+            if x > y:
+                p = (y, x)
+            else:
+                p = (x, y)
+            links_out.append((s, p))
+
+
 def add_to_cluster(p, linkmap, p2, scores):
     c = linkmap[p2]
-    s, x = c
-    if p not in x:
-        for y in x:
-            s += scores[(p, y)]
-        x.add(p)
-        c[0] = s
+    s, cluster = c
+    if p in cluster:
+        print "%s is in 2 sets?" % p
+        return 0.0
+
+    for y in cluster:
+        s += scores[(p, y)]
+    c[0] = s
     linkmap[p] = c
-    n = len(x)
+    cluster.add(p)
+    n = len(cluster)
+    #    scale == 1 / (n! / (r! * (n-r)!)
+    #          == r! * (n-r)! / n!, and here r == 2
+    #          ==  2 / (n * (n-1))
     scale = 2.0 / ((n + 2) * (n + 1))
     return s * scale
 
@@ -154,45 +171,33 @@ def array_to_link_pairs_cluster_aware(a, names, power=1.0):
 
     linkmap = {}
     inv_power = 1.0 / power
-
     for score, link in pairs:
         p1, p2 = link
         if p1 in linkmap and p2 in linkmap:
             c1 = linkmap[p1]
             c2 = linkmap[p2]
-            if c1 is not c2:
-                # [score, set]
-                s1, x1 = c1
-                s2, x2 = c2
-                for x in x2:
-                    linkmap[x] = c1
-                    for y in x1:
-                        s1 += scores[(x, y)]
-
-                x1.update(x2)
-                c1[0] = s1 + s2
-
-            n = len(c1[1])
-            #    scale == 1 / (n! / (r! * (n-r)!)
-            #          == r! * (n-r)! / n!, and here r == 2
-            #          ==  2 / (n * (n-1))
-            scale = 2.0 / ((n + 2) * (n + 1))
-            s = (c1[0] * scale) ** inv_power
-            links_out.append((s, link))
+            if c1 is c2:
+                continue
+            s1, x1 = c1 # [score, set]
+            s2, x2 = c2
+            for x in x2:
+                s = add_to_cluster(x, linkmap, p1, scores)
+            add_to_links(links_out, s ** inv_power, x2, c1)
 
         elif p1 in linkmap:
             s = add_to_cluster(p2, linkmap, p1, scores)
-            links_out.append((s ** inv_power, link))
+            add_to_links(links_out, s ** inv_power, [p2], linkmap[p1])
 
         elif p2 in linkmap:
             s = add_to_cluster(p1, linkmap, p2, scores)
-            links_out.append((s ** inv_power, link))
+            add_to_links(links_out, s ** inv_power, [p1], linkmap[p2])
 
         else:
             c = [score, set(link)]
             linkmap[p1] = c
             linkmap[p2] = c
             links_out.append((score ** inv_power, link))
+
     links_out.sort(reverse=True)
     return links_out
 
