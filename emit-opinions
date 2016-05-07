@@ -8,6 +8,7 @@ import argparse
 import numpy as np
 
 from interpret import apply_interpret_options, add_interpret_options
+from interpret import find_cluster_cliff
 
 from meta import write_rankings_json, write_clusters_json
 from munge import data_to_clusters, cluster_aware_matrix
@@ -17,8 +18,8 @@ def find_clusters(data, names, clusteriness=0):
     data = cluster_aware_matrix(data, names, 2)
     diagonal = np.diagonal(data)
     d_median = np.median(diagonal)
-    median = np.median(data)
-    threshold = d_median - clusteriness * (d_median - median)
+    cliff = find_cluster_cliff(data)
+    threshold = d_median - clusteriness * (d_median - cliff)
     return data_to_clusters(data, threshold)
 
 

@@ -4,26 +4,62 @@ import sys
 import os
 
 from meta import load_opinions
+from munge import data_to_clusters
 from munge import p_to_affinities
 from munge import clipped_neg_exp, clipped_logistic, shuffle_array
 from munge import find_text_lengths, text_length_penalty
 from munge import cluster_aware_matrix
 from colour import C_NORMAL, GREY
 
+
+def find_n_clusters(data, thresholds=None):
+    if thresholds is None:
+        thresholds = np.unique(data)
+    n_clusters = []
+    for t in thresholds:
+        clusters = data_to_clusters(data, t)
+        n_clusters.append(len(clusters))
+    return n_clusters
+
+
+def find_n_links(data, thresholds=None):
+    if thresholds is None:
+        thresholds = np.unique(data)
+    n_links = []
+    w = data.shape[0]
+    scale = 1.0 / (w * w)
+    for t in thresholds:
+        links = np.sum(data > t)
+        n_links.append(links * scale)
+
+    return n_links
+
+
+def find_cluster_cliff(data):
+    thresholds = np.unique(data)
+    n_clusters = find_n_clusters(data)
+    for n, cliff in zip(n_clusters, thresholds):
+        if n > 1:
+            print "found cliff at %d: %f" % (n , cliff)
+            return cliff
+
+
 def threshold_to_clusteriness(data, threshold):
     diagonal = np.diagonal(data)
     d_median = np.median(diagonal)
-    median = np.median(data)
-    if median == d_median:
+    cliff = find_cluster_cliff(data)
+    if cliff == d_median:
         print "undefined clusteriness!"
         return 0
-    return (d_median - threshold) / (d_median - median)
+    return (d_median - threshold) / (d_median - cliff)
+
 
 def clusteriness_to_threshold(data, clusteriness):
     diagonal = np.diagonal(data)
     d_median = np.median(diagonal)
-    median = np.median(data)
-    return d_median - clusteriness * (d_median - median)
+    cliff = find_cluster_cliff(data)
+    return d_median - clusteriness * (d_median - cliff)
+
 
 def load_all_opinions(filenames):
     opinions = load_opinions(filenames[0])

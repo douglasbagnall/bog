@@ -13,6 +13,7 @@ from munge import write_normalised_png
 from eval import print_links
 from eval import load_clustering_json, load_ranking_json, calc_map
 
+from interpret import find_n_links, find_n_clusters
 from interpret import apply_interpret_options
 from interpret import add_interpret_options
 from interpret import clusteriness_to_threshold, threshold_to_clusteriness
@@ -162,39 +163,12 @@ def main():
             plot(list(deltas) + [0], 'c.', label='delta')
 
         if args.n_clusters:
-            n_clusters = []
-            prev_n = -1e99
-            prev_t = -1e99
-            prev_clusters = None
-            for t in thresholds:
-                clusters = data_to_clusters(data, t)
-                n = len(clusters)
-                n_clusters.append(n / float(data.shape[0]))
-                if n < prev_n:
-                    print ("prev     %d, threshold %s %s" %
-                           (prev_n, prev_t, sorted(prev_clusters)))
-                    print ("clusters %d, threshold %s %s" %
-                           (n, t, sorted(clusters)))
-                prev_n = n
-                prev_t = t
-                prev_clusters = clusters
-
+            n_clusters = find_n_clusters(data, thresholds)
+            n_clusters = np.array(n_clusters) / float(data.shape[0])
             plot(n_clusters, 'g.', label='n clusters')
 
         if args.n_links:
-            n_links = []
-            w = data.shape[0]
-            scale = 1.0 / (w * w)
-            prev_links = 1e99
-            prev_t = -1e99
-            for t in thresholds:
-                links = np.sum(data > t)
-                if links > prev_links:
-                    print "prev links %d, threshold %s" % (prev_links, prev_t)
-                    print "     links %d, threshold %s" % (links, t)
-                prev_links = links
-                prev_t = t
-                n_links.append(links * scale)
+            n_links = find_n_links(data, thresholds)
             plot(n_links, 'y.', label='n links')
 
         if true_clusters is not None:
