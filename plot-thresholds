@@ -197,7 +197,7 @@ def main():
                     data.shape[0],
                     best_fbcubed_t,
                     clusteriness,
-                    100 * best_fbcubed / score))
+                    0.5 + 100 * best_fbcubed / score))
             fbcubed_bests.append(best_fbcubed)
             fbcubed_c.append(best_fbcubed_c / float(data.shape[0]))
             fbcubed_lasts.append(score)
@@ -234,7 +234,7 @@ def main():
         ave_best = sum(fbcubed_bests) / n_problems
         print ("average best fbcubed %f at %.1f%% (%d%% last score) "
                "ave. clusteriness %.3g" %
-               (ave_best, 100.0 * sum(fbcubed_c) / n_problems,
+               (ave_best, 0.5 + 100.0 * sum(fbcubed_c) / n_problems,
                 0.5 + 100.0 * sum(fbcubed_bests) / sum(fbcubed_lasts),
                 sum(fbcubed_clusteriness) / n_problems))
     if fbcubed_c_score:
