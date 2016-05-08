@@ -8,7 +8,7 @@ from meta import read_info_json
 HERE = os.path.dirname(__file__)
 
 CLUSTERINESS = {
-    'en': 0.85,
+    'en': 0.82,
     'nl': 0.8,
     'gr': 0.85,
 }
