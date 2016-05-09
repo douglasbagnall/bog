@@ -9,6 +9,7 @@ import time
 import colour
 from munge import data_to_clusters, array_to_link_pairs
 from munge import write_normalised_png
+from meta import read_info_json
 
 from eval import print_links
 from eval import load_clustering_json, load_ranking_json, calc_map
@@ -96,6 +97,8 @@ def main():
         start_time = time.time()
 
     if args.ground_truth_dir:
+        info = read_info_json(os.path.dirname(args.ground_truth_dir.rstrip('/')))
+        genre_map = {x[0]: x[2] for x in info}
         if not args.no_fbcubed:
             true_clusters = {}
             for pid in affinities:
@@ -117,11 +120,13 @@ def main():
         print ("you need to supply --ground-truth-dir for "
                "--show-map or --print_links")
         sys.exit(1)
+        genre_map = {}
 
     n_problems = len(affinities)
 
     for pid, data in affinities.items():
-        colour.print_RED(pid)
+        print "%s%s%s %s" % (colour.RED, pid, colour.C_NORMAL,
+                             genre_map.get(pid, '-'))
         names = all_names[pid]
 
         if args.png_save_dir:
