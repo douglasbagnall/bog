@@ -10,11 +10,11 @@ import numpy as np
 from interpret import apply_interpret_options, add_interpret_options
 from interpret import find_cluster_cliff
 
-from meta import write_rankings_json, write_clusters_json
+from meta import write_rankings_json, write_clusters_json, read_info_json
 from munge import data_to_clusters, cluster_aware_matrix
 
 
-def find_clusters(data, names, clusteriness=0):
+def find_clusters(data, names, clusteriness):
     data = cluster_aware_matrix(data, names, 2)
     diagonal = np.diagonal(data)
     d_median = np.median(diagonal)
@@ -23,8 +23,10 @@ def find_clusters(data, names, clusteriness=0):
     return data_to_clusters(data, threshold)
 
 
-def write_opinions(output_dir, affinities, all_names, clusteriness):
+def write_opinions(output_dir, affinities, all_names, clusteriness_map):
     for pid, data in affinities.items():
+        clusteriness = clusteriness_map[pid]
+        #print "using clusteriness %s for %s" % (clusteriness, pid)
         names = all_names[pid]
         clusters = find_clusters(data, names, clusteriness)
         dest_dir = os.path.join(output_dir, pid)
@@ -32,17 +34,36 @@ def write_opinions(output_dir, affinities, all_names, clusteriness):
         write_rankings_json(data, names, dest_dir)
 
 
+def get_clustiness_map(info_dir, clusteriness_reviews, clusteriness_articles):
+    info = read_info_json(info_dir)
+    clusteriness_map = {}
+    for pid, _, genre in info:
+        if genre == 'articles':
+            clusteriness_map[pid] = clusteriness_articles
+        else:
+            clusteriness_map[pid] = clusteriness_reviews
+    return clusteriness_map
+
+
 def main():
     parser = argparse.ArgumentParser()
     add_interpret_options(parser)
     parser.add_argument('-o', '--output-dir', help="write results here")
-    parser.add_argument('--clusteriness', help="how much to cluster",
-                        default=0.0, type=float)
+    parser.add_argument('--info-dir',
+                        help="where to find info.json")
+    parser.add_argument('--clusteriness-reviews', default=0.5, type=float,
+                        help="how much to cluster reviews")
+    parser.add_argument('--clusteriness-articles', default=0.5, type=float,
+                        help="how much to cluster articles")
     args = parser.parse_args()
 
     affinities, all_names = apply_interpret_options(args)
 
-    write_opinions(args.output_dir, affinities, all_names, args.clusteriness)
+    clusteriness_map = get_clustiness_map(args.info_dir,
+                                          args.clusteriness_reviews,
+                                          args.clusteriness_articles)
+
+    write_opinions(args.output_dir, affinities, all_names, clusteriness_map)
 
 
 main()

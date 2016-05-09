@@ -8,9 +8,9 @@ from meta import read_info_json
 HERE = os.path.dirname(__file__)
 
 CLUSTERINESS = {
-    'en': 0.82,
-    'nl': 0.8,
-    'gr': 0.85,
+    'en': (0.82, 0.79),
+    'nl': (0.81, 0.77),
+    'gr': (0.85, 0.82)
 }
 
 
@@ -54,8 +54,12 @@ def write_answers_for_lang(lang, input_dir, output_dir):
         except subprocess.CalledProcessError, e:
             print "failed to create %s with %s" % (pickle, e)
 
+    cl_articles, cl_reviews = CLUSTERINESS[lang]
+
     cmd = ['./emit-opinions', '-o', output_dir,
-           '--clusteriness', str(CLUSTERINESS[lang]),
+           '--clusteriness-articles', str(cl_articles),
+           '--clusteriness-reviews', str(cl_reviews),
+           '--info-dir', input_dir,
            '--strategy', 'exp',
            '-n', 'scale_l2']
 
