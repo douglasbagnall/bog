@@ -185,7 +185,8 @@ def train(net, texts, leakage, epochs, leakage_decay,
 
 
 def get_net_and_corpus(srcdir, controldir, control_n, lang,
-                       reverse, validation_dir, net_kwargs):
+                       reverse, validation_dir, word_df_threshold,
+                       net_kwargs):
     print srcdir
     texts, problems = language.load_corpus(srcdir, lang)
 
@@ -202,6 +203,9 @@ def get_net_and_corpus(srcdir, controldir, control_n, lang,
 
         print "using %d control texts; wanted %d" % (len(control_texts),
                                                      control_n)
+
+    if word_df_threshold:
+        language.word_df_filter(texts, word_df_threshold)
 
     # remap into net enumeration encoding
     alphabet = charmodel.Alphabet(''.join(texts.values()), ignore_case=False,
@@ -302,6 +306,7 @@ def main():
                                                       args.lang,
                                                       args.reverse,
                                                       args.validation_corpus,
+                                                      args.word_df_threshold,
                                                       net_kwargs)
 
     if args.opinion_every:

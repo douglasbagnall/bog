@@ -97,6 +97,30 @@ def count_chars(text, decompose=False):
     return c.most_common()
 
 
+def word_df_filter(texts, threshold):
+    nonalpha = u'!"%&\'()*,./7`:;?¹—\s«¹»€-'
+    wsplit = re.compile(u'[%s]+' % nonalpha, re.UNICODE).split
+    c = Counter()
+    for v in texts.values():
+        v = v.replace('¹', '')
+        v = v.decode('utf-8')
+        words = set(wsplit(v))
+        c.update(words)
+    t = len(texts) * threshold
+    good_words = set(x for x in c if c[x] > t)
+
+    def accept_word(m):
+        w = m.group(0)
+        if w in good_words:
+            return w
+        return u'°'
+
+    for k in texts.keys():
+        v = texts[k].decode('utf-8')
+        v = re.sub(u'[^%s]+' % nonalpha, accept_word, v, flags=re.UNICODE)
+        texts[k] = v.encode('utf-8')
+
+
 # Charmaps always discard these
 dispensible_chars = set('\x0b\x0c\r'.decode('utf8') + u'\ufeff\xad\x85' +
                         u'\u2028\\_')

@@ -105,6 +105,9 @@ def add_common_args(add_arg, input_dir=True):
     add_arg('-r', '--rng-seed', type=int, default=-1,
             help="rng seed (-1 for auto)")
 
+    add_arg('--word-df-threshold', type=float,
+            help="ignore words in less than this portion of texts")
+
 
 def make_directory_name(basename, lang, reloading=False):
     # make up a good name
