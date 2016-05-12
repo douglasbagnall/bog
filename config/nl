@@ -1,4 +1,4 @@
 -H299 -V4 --batch-size 80 --presynaptic-noise=0.5 --init-method=0
 -H159 -V2 --presynaptic-noise=0.3 -L -3  --batch-size 50
--H139 -V4 --presynaptic-noise=0.3 --reverse --batch-size 30
--H99 -V3 --presynaptic-noise=0.5 --batch-size 20
+-H139 -V4 --presynaptic-noise=0.3 --reverse --batch-size 30 --word-df-threshold 0.005
+-H99 -V3 --presynaptic-noise=0.5  --word-df-threshold 0.01
