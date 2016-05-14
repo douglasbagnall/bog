@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import argparse
 import os
-from colour import foreground, C_NORMAL, GREY, CYAN, WHITE, MAGENTA
+from colour import foreground, C_NORMAL, GREY, CYAN, WHITE, MAGENTA, RED, GREEN
 import random
 
 from eval import load_clustering_json, load_ranking_json, load_ground_truths
@@ -30,7 +30,7 @@ def shuffle_ranking(links):
     return zip(scores, pairs)
 
 
-def calc_fbcubed(clusters, truth, quiet=False):
+def calc_fbcubed(clusters, truth, verbose=2):
     truth_map = {}
     for t in truth:
         for d in t:
@@ -55,13 +55,15 @@ def calc_fbcubed(clusters, truth, quiet=False):
             rr = float(correct) / len(tcluster)
             p += pp
             r += rr
-            if not quiet:
+            if verbose > 1:
                 pc = colourise(pp)
                 rc = colourise(rr)
                 if correct > 1:
                     label_colour = MAGENTA
-                else:
+                elif len(cluster) > 1:
                     label_colour = WHITE
+                else:
+                    label_colour = GREY
 
                 print "%sp%s%2d/%-2d%s" % (label_colour, pc, correct,
                                            len(cluster), C_NORMAL),
@@ -70,14 +72,25 @@ def calc_fbcubed(clusters, truth, quiet=False):
                 i += 1
                 if (i % 5) == 0:
                     print
-    if (i % 5) != 0 and not quiet:
+    if (i % 5) != 0 and verbose > 1:
         print
-    print "recall    %s%s%s" % (colourise(r / n), r / n, C_NORMAL)
-    print "precision %s%s%s" % (colourise(p / n), p / n, C_NORMAL)
+    if verbose > 0:
+        print "recall    %.2f/%d  %s%s%s" % (r, n, colourise(r / n), r / n,
+                                             C_NORMAL)
+        print "precision %.2f/%d  %s%s%s" % (p, n, colourise(p / n), p / n,
+                                             C_NORMAL)
     rp = n / p
     rr = n / r
     return 2.0 / (rp + rr)
 
+
+def sign_colour(a, b):
+    c = a - b
+    if c < 0:
+        return "%s%.4f%s" % (RED, c, C_NORMAL)
+    if c > 0:
+        return "%s+%.4f%s" % (GREEN, c, C_NORMAL)
+    return " ="
 
 def main():
     parser = argparse.ArgumentParser()
@@ -88,14 +101,15 @@ def main():
                         help="use this alternative control corpus")
     parser.add_argument('--shuffle', action='store_true',
                         help="randomly shuffle results (for baseline)")
-    parser.add_argument('-q', '--quiet', action='store_true',
-                        help="be relatively quiet")
+    parser.add_argument('-v', '--verbose', type=int, default=1,
+                        help="0 for near silence, 2 for lots")
 
     args = parser.parse_args()
 
     truths = load_ground_truths(args.ground_truth_dir)
 
     fbcubed_total = 0.0
+    coward_total = 0.0
     map_total = 0.0
     n = 0.0
     files = []
@@ -116,6 +130,7 @@ def main():
                 ranking = shuffle_ranking(ranking)
 
             score = calc_map(ranking, t['ranking'])
+
             print "%s MAP %s" % (pid, score)
             n += 1.0
             map_total += score
@@ -126,11 +141,18 @@ def main():
                 clustering = shuffle_clustering(docs, clustering)
             assert(docs == t['documents'])
             score = calc_fbcubed(clustering, t['clustering'],
-                                 quiet=args.quiet)
-            print "%s F(BCubed) %s" % (pid, score)
-            fbcubed_total += score
+                                 verbose=args.verbose)
+            coward_score = calc_fbcubed([set([x]) for x in docs], t['clustering'],
+                                        verbose=0)
 
-    print "FBCubed mean %s" % (fbcubed_total / n)
+            print "%s F(BCubed) %s %s" % (pid, score,
+                                          sign_colour(score, coward_score))
+            fbcubed_total += score
+            coward_total += coward_score
+
+    print "FBCubed mean %s %s" % (fbcubed_total / n,
+                                  sign_colour(fbcubed_total / n,
+                                              coward_total / n))
     print "MAP mean     %s" % (map_total / n)
 
 
