@@ -16,7 +16,7 @@ from eval import load_clustering_json, load_ranking_json, calc_map
 
 from interpret import find_n_links, find_n_clusters
 from interpret import apply_interpret_options
-from interpret import add_interpret_options
+from interpret import add_interpret_options, find_clusteriness_anchors
 from interpret import clusteriness_to_threshold, threshold_to_clusteriness
 
 from language import TRAINING_CORPUS
@@ -79,6 +79,9 @@ def main():
 
     parser.add_argument('--clusteriness', type=float,
                         help="show fbcubed at this clusteriness")
+
+    parser.add_argument('--annotate', action='store_true',
+                        help="show clusteriness anchor points")
 
     args = parser.parse_args()
 
@@ -216,6 +219,12 @@ def main():
                                   "(threshold %.3g): %3g (%d%%)" %
                                   (args.clusteriness, t2, c_score,
                                    0.5 + 100.0 * c_score / score))
+                if args.annotate:
+                    if args.threshold_x:
+                        cliff, d_median = find_clusteriness_anchors(data)
+                        ax.axvline(cliff, 0.05, 0.95, color='#cccccc', zorder=-1)
+                        ax.axvline(d_median, 0.5, 0.95, color='#ffcccc', zorder=-1)
+                        ax.axvline(t2, 0.5, 0.95, color='#ff0000', zorder=-1)
 
         if args.time:
             elapsed = time.time() - start_time

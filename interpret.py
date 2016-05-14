@@ -44,10 +44,15 @@ def find_cluster_cliff(data):
             return cliff
 
 
-def threshold_to_clusteriness(data, threshold):
+def find_clusteriness_anchors(data):
     diagonal = np.diagonal(data)
     d_median = np.median(diagonal)
     cliff = find_cluster_cliff(data)
+    return cliff, d_median
+
+
+def threshold_to_clusteriness(data, threshold):
+    cliff, d_median = find_clusteriness_anchors(data)
     if cliff == d_median:
         print "undefined clusteriness!"
         return 0
@@ -55,9 +60,7 @@ def threshold_to_clusteriness(data, threshold):
 
 
 def clusteriness_to_threshold(data, clusteriness):
-    diagonal = np.diagonal(data)
-    d_median = np.median(diagonal)
-    cliff = find_cluster_cliff(data)
+    cliff, d_median = find_clusteriness_anchors(data)
     return d_median - clusteriness * (d_median - cliff)
 
 
