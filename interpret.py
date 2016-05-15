@@ -101,6 +101,19 @@ def load_all_opinions(filenames):
     return affinities, names, control_texts, control_models, text_lengths
 
 
+def _norm_mean(x, *etc):
+    x -= np.mean(x, axis=1)
+    return x
+
+
+def _norm_mean_scale_l1(x, control_texts, control_models):
+    x -= np.mean(x, axis=1)
+    y = np.abs(x)
+    s = y.sum(0)
+    s = np.maximum(s, 1e-8)
+    return x / s
+
+
 def _norm_diagonal(x, *etc):
     d = np.diagonal(x)
     d = d.reshape(d.shape + (1,))
