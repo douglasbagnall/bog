@@ -8,7 +8,7 @@ import json
 
 from meta import load_opinions
 from fasttsne import fast_tsne
-
+import interpret
 mpl.rcParams['savefig.directory'] = 'results/images'
 
 
@@ -45,8 +45,12 @@ def norm_norm_norm(entropies):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--normalise', action="store_true",
+    parser.add_argument('--normalise-sphere', action="store_true",
                         help='normalise each vector to a unit hypersphere')
+
+    parser.add_argument('-n', '--normalise', default='texts',
+                        choices=interpret.NORMALISERS.keys(),
+                        help='normalise in this dimension')
 
     parser.add_argument('-N', '--no-norm-norm-norm', action="store_true",
                         help='less normalisation')
@@ -111,15 +115,14 @@ def main():
 
     for tag, data in affinities.items():
         print tag
-        data -= control_texts[tag]
-        data -= np.diagonal(data)
-        #data = data.T
+        norm = interpret.NORMALISERS[args.normalise]
+        data = norm(data, control_texts[tag], control_models[tag])
         data = np.concatenate((data, data.T), axis=1)
         if not args.no_norm_norm_norm:
             data = norm_norm_norm(data)
 
         Y = fast_tsne(data, perplexity=args.perplexity, theta=0.5,
-                      normalise_mean=args.normalise)
+                      normalise_mean=args.normalise_sphere)
 
         if args.csv_output_dir:
             fn = os.path.join(args.csv_output_dir, tag + '.csv')
