@@ -69,6 +69,13 @@ def main():
     parser.add_argument('--no-plot', action='store_true',
                         help="don't actually plot")
 
+    parser.add_argument('--no-show', action='store_true',
+                        help="plot but don't show (use with --save-as)")
+
+    parser.add_argument('--save-as',
+                        help=("Save images to this filename;"
+                              "include {p} for problem id"))
+
     parser.add_argument('--threshold-x', action='store_true',
                         help="use the threshold as X axis")
 
@@ -263,7 +270,11 @@ def main():
         if not args.no_plot:
             plt.legend(loc='upper left', numpoints=1, frameon=False,
                        borderpad=0)
-            plt.show()
+            if not args.no_show:
+                plt.show()
+            if args.save_as:
+                fn = args.save_as.format(p=pid)
+                plt.savefig(fn, dpi=150)
 
     if true_ranking:
         print "average MAP is        %f" % (sum(map_results) / n_problems)
