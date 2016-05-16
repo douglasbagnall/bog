@@ -84,6 +84,9 @@ def main():
     parser.add_argument('--annotate', action='store_true',
                         help="show clusteriness anchor points")
 
+    parser.add_argument('--printable', action='store_true',
+                        help="optimise for print")
+
     args = parser.parse_args()
 
     affinities, all_names = apply_interpret_options(args)
@@ -96,6 +99,31 @@ def main():
     map_results = []
     true_clusters = None
     true_ranking = None
+
+    if args.printable:
+        styles = {
+            #'n clusters': {'color': '#ffffff', 'marker': 'o', 'edgecolors': '#333333'},
+            'n clusters': {'marker': '+', 'color': '#990000'},
+            'thresholds': {'color': 'k', 'marker': '|'},
+            'delta': {'color': '#666666', 'marker': 'd'},
+            'n links': {'color': '#cccccc', 'marker': '.'},
+            'fbcubed': {'color': '#000077', 'marker': 'x'},
+            'cliff': {'color': '#999999', 'zorder': -1, 'linestyle': '--'},
+            'fbcubed threshold': {'color': '#999999', 'zorder': -1,
+                                  'linestyle': ':'},
+            'd median': {'color': '#999999', 'zorder': -1, 'linestyle': '--'},
+        }
+    else:
+        styles = {
+            'n clusters': {'color': 'g', 'marker': '.'},
+            'thresholds': {'color': 'r', 'marker': '.'},
+            'delta': {'color': '#00ccff', 'marker': '.'},
+            'n links': {'color': '#ffcc00', 'marker': '.'},
+            'fbcubed': {'color': 'b', 'marker': '.'},
+            'cliff': {'color': '#cccccc', 'zorder': -1},
+            'fbcubed threshold': {'color': '#cc0000', 'zorder': -1},
+            'd median': {'color': '#cccccc', 'zorder': -1},
+        }
 
     if args.time:
         start_time = time.time()
@@ -146,15 +174,12 @@ def main():
             def plot(*args, **kwargs):
                 pass
         elif args.threshold_x:
-            def plot(*args, **kwargs):
-                y, point = args[:2]
-                ax.scatter(thresholds, y,
-                           color=point[0],
-                           marker=point[1],
-                           *args[2:], **kwargs)
+            def plot(seq, label):
+                ax.scatter(thresholds, seq, label=label, **styles[label])
         else:
-            plot = ax.plot
-            plot(thresholds, 'r.', label='thresholds')
+            def plot(seq, label):
+                ax.plot(seq, label=label, **styles[label])
+            plot(thresholds, 'thresholds')
 
         if args.show_map:
             links = array_to_link_pairs(data, names)
@@ -168,17 +193,17 @@ def main():
             print_links(links, true_ranking[pid], names)
 
         if args.delta:
-            deltas = np.diff(thresholds) * 10
-            plot(list(deltas) + [0], 'c.', label='delta')
+            deltas = np.diff(thresholds)
+            plot([0] + list(deltas), 'delta')
 
         if args.n_clusters:
             n_clusters = find_n_clusters(data, thresholds)
             n_clusters = np.array(n_clusters) / float(data.shape[0])
-            plot(n_clusters, 'g.', label='n clusters')
+            plot(n_clusters, 'n clusters')
 
         if args.n_links:
             n_links = find_n_links(data, thresholds)
-            plot(n_links, 'y.', label='n links')
+            plot(n_links, 'n links')
 
         if true_clusters is not None:
             fbcubed = []
@@ -196,7 +221,7 @@ def main():
                         best_fbcubed_c = len(clusters)
                         best_fbcubed_t = t
                 fbcubed.append(score)
-            plot(fbcubed, 'b.', label='fbcubed')
+            plot(fbcubed, 'fbcubed')
 
             clusteriness = threshold_to_clusteriness(data, best_fbcubed_t)
             print ("FBCUBED best: %.3f at %d/%d (threshold %.2f, "
@@ -226,9 +251,9 @@ def main():
                         cliff = bisect_left(thresholds, cliff)
                         d_median = bisect_left(thresholds, d_median)
                         t2 = bisect_left(thresholds, t2)
-                    ax.axvline(cliff, 0.05, 0.95, color='#cccccc', zorder=-1)
-                    ax.axvline(d_median, 0.5, 0.95, color='#ffcccc', zorder=-1)
-                    ax.axvline(t2, 0.5, 0.95, color='#ff0000', zorder=-1)
+                    ax.axvline(cliff, 0.05, 0.95, **styles['cliff'])
+                    ax.axvline(d_median, 0.25, 0.95, **styles['d median'])
+                    ax.axvline(t2, 0.15, 0.95, **styles['fbcubed threshold'])
 
         if args.time:
             elapsed = time.time() - start_time
