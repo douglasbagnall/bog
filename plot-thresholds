@@ -274,7 +274,8 @@ def main():
                 plt.show()
             if args.save_as:
                 fn = args.save_as.format(p=pid)
-                plt.savefig(fn, dpi=150)
+                plt.savefig(fn, dpi=150, transparent=True,
+                            frameon=False)
 
     if true_ranking:
         print "average MAP is        %f" % (sum(map_results) / n_problems)
