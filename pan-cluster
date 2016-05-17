@@ -42,15 +42,17 @@ def get_commands(lang, input_dir, output_dir):
     return commands
 
 
-def write_answers_for_lang(lang, input_dir, output_dir):
+def write_answers_for_lang(lang, input_dir, output_dir, skip_training):
     commands = get_commands(lang, input_dir, output_dir)
 
     pickles = []
     for pickle, cmd in commands.items():
         print "training:  %s" % ' '.join(cmd)
         try:
-            subprocess.check_call(cmd)
-            pickles.append(pickle)
+            if not skip_training:
+                subprocess.check_call(cmd)
+            if os.path.exists(pickle):
+                pickles.append(pickle)
         except subprocess.CalledProcessError, e:
             print "failed to create %s with %s" % (pickle, e)
 
@@ -74,6 +76,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input-dir', help="find testing corpus here")
     parser.add_argument('-o', '--output-dir', help="write results here")
+    parser.add_argument('--skip-training', action='store_true',
+                        help="don't actually train; assume pickles exist")
 
     args = parser.parse_args()
 
@@ -82,6 +86,7 @@ def main():
 
     for lang in langs:
         print "looking at %s" % lang
-        write_answers_for_lang(lang, args.input_dir, args.output_dir)
+        write_answers_for_lang(lang, args.input_dir, args.output_dir,
+                               args.skip_training)
 
 main()
