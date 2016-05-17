@@ -153,7 +153,7 @@ def add_to_cluster(p, linkmap, p2, scores):
     #    scale == 1 / (n! / (r! * (n-r)!)
     #          == r! * (n-r)! / n!, and here r == 2
     #          ==  2 / (n * (n-1))
-    scale = 2.0 / ((n + 2) * (n + 1))
+    scale = 2.0 / (n * (n - 1))
     return s * scale
 
 
