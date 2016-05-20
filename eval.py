@@ -52,46 +52,6 @@ def load_ground_truths(srcdir):
     return truths
 
 
-def avg_precision(d, pairs, truth):
-    precision = 0.0
-    count = 0.0
-    correct = 0.0
-    truth = set(x for x in truth if d in x)
-    for pair in pairs:
-        if d not in pair:
-            continue
-        count += 1.0
-        if pair in truth:
-            correct += 1.0
-            precision += correct / count
-            if correct == len(truth):
-                break
-
-    return precision / correct
-
-
-def calc_map_individual(links, truth, documents):
-    true_links = set(p for s, p in truth)
-    true_docs = set()
-    for d1, d2 in true_links:
-        true_docs.add(d1)
-        true_docs.add(d2)
-
-    pairs = {}
-    for s, p in sorted(links, reverse=True):
-        p1, p2 = p
-        if p1 in true_docs:
-            pairs.setdefault(p1, []).append(p)
-        if p2 in true_docs:
-            pairs.setdefault(p2, []).append(p)
-
-    score = 0.0
-    for d in true_docs:
-        score += avg_precision(d, pairs[d], true_links)
-
-    return score / len(documents)
-
-
 def calc_map(links, truth):
     if not truth or not links:
         return 0.0
