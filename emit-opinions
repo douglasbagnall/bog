@@ -15,7 +15,7 @@ from munge import data_to_clusters, cluster_aware_matrix
 
 
 def find_clusters(data, names, clusteriness):
-    data = cluster_aware_matrix(data, names, 2)
+    data = cluster_aware_matrix(data, names, 1)
     diagonal = np.diagonal(data)
     d_median = np.median(diagonal)
     cliff = find_cluster_cliff(data)
