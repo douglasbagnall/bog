@@ -23,6 +23,12 @@ from interpret import clusteriness_to_threshold, threshold_to_clusteriness
 from language import TRAINING_CORPUS
 
 
+def latex_diff(c_score, score):
+    if c_score > score:
+        return '\\textbf{%.3f}' % (c_score - score)
+    return '%.3f' % (c_score - score)
+
+
 def calc_fbcubed(truth, clusters):
     r = 0.0
     p = 0.0
@@ -97,6 +103,9 @@ def main():
     parser.add_argument('--printable', action='store_true',
                         help="optimise for print")
 
+    parser.add_argument('--latex-table', action='store_true',
+                        help="make command-line output like a latex table")
+
     args = parser.parse_args()
 
     affinities, all_names = apply_interpret_options(args)
@@ -138,6 +147,9 @@ def main():
     if args.time:
         start_time = time.time()
 
+    if args.latex_table:
+        print '\\hline'
+
     if args.ground_truth_dir:
         info = read_info_json(os.path.dirname(args.ground_truth_dir.rstrip('/')))
         genre_map = {x[0]: x[2] for x in info}
@@ -169,12 +181,17 @@ def main():
                "--show-map or --print_links")
         sys.exit(1)
         genre_map = {}
+        lang_map = {}
 
     n_problems = len(affinities)
 
-    for pid, data in affinities.items():
-        print "%s%s%s %s" % (colour.RED, pid, colour.C_NORMAL,
-                             genre_map.get(pid, '-'))
+    for pid, data in sorted(affinities.items()):
+        if not args.latex_table:
+            print "%s%s%s %s" % (colour.RED, pid, colour.C_NORMAL,
+                                 genre_map.get(pid, '-'))
+        else:
+            print "%s %8s & %s &" % (lang_map[pid], genre_map[pid], pid),
+
         names = all_names[pid]
 
         if args.png_save_dir:
@@ -200,7 +217,11 @@ def main():
         if args.show_map:
             links = array_to_link_pairs(data, names)
             map = calc_map(links, true_ranking[pid])
-            print "MAP is %f" % map
+            if not args.latex_table:
+                print "MAP is %f" % map
+            else:
+                print "%.3f &" % (map),
+
             ax.set_title("%s: MAP %.3g" % (pid, map))
             map_results.append(map)
 
@@ -240,14 +261,21 @@ def main():
             plot(fbcubed, 'fbcubed')
 
             clusteriness = threshold_to_clusteriness(data, best_fbcubed_t)
-            print ("FBCUBED best: %.3f at %d/%d (threshold %.2f, "
-                   "clusteriness %.3g, %d%% last)" %
-                   (best_fbcubed,
-                    best_fbcubed_c,
-                    data.shape[0],
-                    best_fbcubed_t,
-                    clusteriness,
-                    0.5 + 100 * best_fbcubed / score))
+            if not args.latex_table:
+                print ("FBCUBED best: %.3f at %d/%d (threshold %.2f, "
+                       "clusteriness %.3g, %d%% last)" %
+                       (best_fbcubed,
+                        best_fbcubed_c,
+                        data.shape[0],
+                        best_fbcubed_t,
+                        clusteriness,
+                        0.5 + 100 * best_fbcubed / score))
+            else:
+                diff = latex_diff(best_fbcubed, score)
+                print "%.3f & %.3f & %.2f & %s &" % (score, best_fbcubed,
+                                                     clusteriness,
+                                                     diff),
+
             fbcubed_bests.append(best_fbcubed)
             fbcubed_c.append(best_fbcubed_c / float(data.shape[0]))
             fbcubed_lasts.append(score)
@@ -258,10 +286,15 @@ def main():
                 clusters = data_to_clusters(data, t2, names)
                 c_score = calc_fbcubed(true_clusters[pid], clusters)
                 fbcubed_c_score.append(c_score)
-                colour.print_CYAN("fbcubed at clusteriness %.3g "
-                                  "(threshold %.3g): %3g (%d%%)" %
-                                   0.5 + 100.0 * c_score / score))
+                if not args.latex_table:
+                    colour.print_CYAN("fbcubed at clusteriness %.3g "
+                                      "(threshold %.3g): %3g (%d%%)" %
                                       (c, t2, c_score,
+                                       0.5 + 100.0 * c_score / score))
+                else:
+                    diff = latex_diff(c_score, score)
+                    print "%.3f & %.2f & %s \\\\" % (c_score, c, diff)
+
                 if args.annotate:
                     cliff, d_median = find_clusteriness_anchors(data)
                     if not args.threshold_x:
@@ -286,6 +319,9 @@ def main():
                 fn = args.save_as.format(p=pid)
                 plt.savefig(fn, dpi=150, transparent=True,
                             frameon=False)
+
+    if args.latex_table:
+        sys.exit()
 
     if true_ranking:
         print "average MAP is        %f" % (sum(map_results) / n_problems)

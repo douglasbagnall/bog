@@ -40,7 +40,6 @@ def find_cluster_cliff(data):
     n_clusters = find_n_clusters(data)
     for n, cliff in zip(n_clusters, thresholds):
         if n > 1:
-            print "found cliff at %d: %f" % (n , cliff)
             return cliff
 
 
