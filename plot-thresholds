@@ -85,6 +85,9 @@ def main():
     parser.add_argument('--threshold-x', action='store_true',
                         help="use the threshold as X axis")
 
+    parser.add_argument('--n-clusters-x', action='store_true',
+                        help="use the number of clusters as X axis")
+
     parser.add_argument('--no-fbcubed', action='store_true',
                         help="don't do fbcubed even with ground truth")
 
@@ -200,6 +203,10 @@ def main():
 
         thresholds = np.unique(data)
 
+        if args.n_clusters or args.n_clusters_x:
+            n_clusters = find_n_clusters(data, thresholds)
+            n_clusters = np.array(n_clusters) / float(data.shape[0])
+
         fig = plt.figure(figsize=(12, 10))
         ax = fig.add_subplot(111)
         ax.set_title(pid)
@@ -209,6 +216,9 @@ def main():
         elif args.threshold_x:
             def plot(seq, label):
                 ax.scatter(thresholds, seq, label=label, **styles[label])
+        elif args.n_clusters_x:
+            def plot(seq, label):
+                ax.scatter(n_clusters, seq, label=label, **styles[label])
         else:
             def plot(seq, label):
                 ax.plot(seq, label=label, **styles[label])
@@ -234,8 +244,6 @@ def main():
             plot([0] + list(deltas), 'delta')
 
         if args.n_clusters:
-            n_clusters = find_n_clusters(data, thresholds)
-            n_clusters = np.array(n_clusters) / float(data.shape[0])
             plot(n_clusters, 'n clusters')
 
         if args.n_links:
