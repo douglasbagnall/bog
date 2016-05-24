@@ -10,7 +10,7 @@ from bisect import bisect_left
 import colour
 from munge import data_to_clusters, array_to_link_pairs
 from munge import write_normalised_png
-from meta import read_info_json
+from meta import read_info_json, CLUSTERINESS
 
 from eval import print_links
 from eval import load_clustering_json, load_ranking_json, calc_map
@@ -88,6 +88,9 @@ def main():
     parser.add_argument('--clusteriness', type=float,
                         help="show fbcubed at this clusteriness")
 
+    parser.add_argument('--auto-clusteriness', action='store_true',
+                        help="use the pan-cluster default clusteriness")
+
     parser.add_argument('--annotate', action='store_true',
                         help="show clusteriness anchor points")
 
@@ -138,6 +141,12 @@ def main():
     if args.ground_truth_dir:
         info = read_info_json(os.path.dirname(args.ground_truth_dir.rstrip('/')))
         genre_map = {x[0]: x[2] for x in info}
+        lang_map = {x[0]: x[1] for x in info}
+        clusteriness_map = {}
+        if args.auto_clusteriness:
+            for pid, lang, genre in info:
+                clusteriness_map[pid] = CLUSTERINESS[lang][genre == 'reviews']
+
         if not args.no_fbcubed:
             true_clusters = {}
             for pid in affinities:
@@ -243,15 +252,16 @@ def main():
             fbcubed_c.append(best_fbcubed_c / float(data.shape[0]))
             fbcubed_lasts.append(score)
             fbcubed_clusteriness.append(clusteriness)
-            if args.clusteriness is not None:
-                t2 = clusteriness_to_threshold(data, args.clusteriness)
+            if args.clusteriness or args.auto_clusteriness:
+                c = clusteriness_map.get(pid, args.clusteriness)
+                t2 = clusteriness_to_threshold(data, c)
                 clusters = data_to_clusters(data, t2, names)
                 c_score = calc_fbcubed(true_clusters[pid], clusters)
                 fbcubed_c_score.append(c_score)
                 colour.print_CYAN("fbcubed at clusteriness %.3g "
                                   "(threshold %.3g): %3g (%d%%)" %
-                                  (args.clusteriness, t2, c_score,
                                    0.5 + 100.0 * c_score / score))
+                                      (c, t2, c_score,
                 if args.annotate:
                     cliff, d_median = find_clusteriness_anchors(data)
                     if not args.threshold_x:
@@ -293,8 +303,8 @@ def main():
                 0.5 + 100.0 * sum(fbcubed_bests) / sum(fbcubed_lasts),
                 sum(fbcubed_clusteriness) / n_problems))
     if fbcubed_c_score:
-        print ("average fbcubed at clusteriness %.3g: %3g (%d%%)" %
-               (args.clusteriness, sum(fbcubed_c_score) / n_problems,
+        print ("average fbcubed at specified clusteriness: %3g (%d%%)" %
+               (sum(fbcubed_c_score) / n_problems,
                 0.5 + 100.0 * sum(fbcubed_c_score) / sum(fbcubed_lasts)))
 
 main()

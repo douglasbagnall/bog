@@ -4,6 +4,12 @@ import errno
 import numpy as np
 import cPickle
 
+CLUSTERINESS = {
+    'en': (0.82, 0.79),
+    'nl': (0.81, 0.77),
+    'gr': (0.85, 0.82)
+}
+
 
 def read_info_json(d):
     """An example:
