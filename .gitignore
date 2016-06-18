@@ -8,7 +8,6 @@
 /images/
 /*.log
 *.net
-/answers-*
 /results/
 /report/*.pdf
 /report/*.zip
