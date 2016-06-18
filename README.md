@@ -1,17 +1,17 @@
-Author identification using multi-headed recurrent neural networks
-==================================================================
+Author clustering using multi-headed recurrent neural networks
+==============================================================
 
-This software was developed for the [PAN] 2015 [author identification]
-challenge.
+This software was developed for the [PAN] 2016 [author clustering]
+competition.
 
 [pan]: http://pan.webis.de/
-[author identification]: http://www.uni-weimar.de/medien/webis/events/pan-15/pan15-web/author-identification.html
+[author clustering]: http://pan.webis.de/clef16/pan16-web/author-identification.html
 
-It uses a multi-headed recurrent neural network (RNN) from the [recur]
-project. The recur module is in the form of a Python extension, and to
-build it you need to have various packages listed in the recur README,
-and the python-dev package. `make charmodel.so` is supposed to work.
+Bog is derived in part from [Caravel] which answers binary authorship
+questions (within a particular competititon framework). Both use the
+same underlying method and are based on the [recur] project.
 
+[Caravel]: https://github.com/pan-webis-de/caravel
 [recur]: https://github.com/douglasbagnall/recur
 
 This software is copyright Douglas Bagnall and is licensed under the
