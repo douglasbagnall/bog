@@ -94,6 +94,9 @@ def main():
     parser.add_argument('--png-save-dir',
                         help="save array images here")
 
+    parser.add_argument('--negative-png', action='store_true',
+                        help="invert array image colour (white=0)")
+
     parser.add_argument('--clusteriness', type=float,
                         help="show fbcubed at this clusteriness")
 
@@ -199,7 +202,7 @@ def main():
 
         if args.png_save_dir:
             fn = "%s/%s.png" % (args.png_save_dir, pid)
-            write_normalised_png(data, fn)
+            write_normalised_png(data, fn, negative=args.negative_png)
 
         thresholds = np.unique(data)
 

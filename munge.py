@@ -7,13 +7,16 @@ import math
 import os
 
 
-def write_normalised_png(a, fn, verbose=False):
+def write_normalised_png(a, fn, verbose=False, negative=False):
     from PIL import Image
     hi = np.amax(a)
     lo = np.amin(a)
     scale = 255.9 / (hi - lo)
     b = (a - lo) * scale
     c = np.array(b, dtype='uint8')
+    if negative:
+        c = -c
+        c += 255
     if verbose:
         print fn
         print "low %f high %f scale %f" % (lo, hi, scale)
