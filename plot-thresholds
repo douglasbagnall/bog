@@ -186,6 +186,7 @@ def main():
         print ("you need to supply --ground-truth-dir for "
                "--show-map or --print_links")
         sys.exit(1)
+    else:
         genre_map = {}
         lang_map = {}
 
