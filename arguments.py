@@ -87,6 +87,18 @@ def add_rnn_args(add_arg):
     add_arg('--opinion-every', type=int,
             help="write an opinion at this interval of epochs")
 
+    add_arg('--confab-interval', type=int, metavar='N',
+            help="confabulate every N generations")
+
+    add_arg('--confab-n', type=int,
+            help="confabulate using this many sub-models")
+
+    add_arg('--confab-len', type=int,
+            help="confabulate line is this long")
+
+    add_arg('--confab-caps-marker',
+            help="this character indicates next char is a capital")
+
 
 def add_common_args(add_arg, input_dir=True):
     add_arg('lang', help="the language to look at")

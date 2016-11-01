@@ -135,12 +135,21 @@ def calc_ventropy_change(ventropies, prev_ventropies):
 def train(net, texts, leakage, epochs, leakage_decay,
           learn_rate_decay, ignore_start, validation_text,
           validation_reverse_length, opinion_args,
-          net_filename):
+          net_filename, confab_n=3, confab_len=79,
+          confab_interval=0, confab_caps_marker=None):
     prev_ventropies = net.test(validation_text, ignore_start, 1)
     v_history = []
+
+    for name in net.class_names[:confab_n]:
+        print name,
+
+    net.start_confab(confab_interval, confab_n, confab_len,
+                     confab_caps_marker)
+
     for i in range(epochs):
-        print ("starting epoch %d with learn-rate %s, "
-               "leakage %s" % (i + 1, net.learn_rate, leakage))
+        if not confab_interval:
+            print ("starting epoch %d with learn-rate %s, "
+                   "leakage %s" % (i + 1, net.learn_rate, leakage))
         start = time.time()
 
         for name, text in texts.items():
@@ -150,14 +159,16 @@ def train(net, texts, leakage, epochs, leakage_decay,
             net.save(net_filename)
 
         middle = time.time()
-        print "training took %d:%02d" % divmod(middle - start, 60)
+        if not confab_interval:
+            print "training took %d:%02d" % divmod(middle - start, 60)
 
         ventropies = net.test(validation_text, ignore_start, 1)
         vstats = calc_ventropy_change(ventropies, prev_ventropies)
         prev_ventropies = ventropies
         print ("validation entropy %.3f±%.3f  diff % .3f±%.3f" % vstats)
         end = time.time()
-        print "validation took %d:%02d" % divmod(end - middle, 60)
+        if not confab_interval:
+            print "validation took %d:%02d" % divmod(end - middle, 60)
         if vstats[0] > VALIDATION_ABORT_THRESHOLD:
             raise RuntimeError('Validation error %.3f > %.3f; aborting' %
                                (vstats[0], VALIDATION_ABORT_THRESHOLD))
@@ -182,6 +193,8 @@ def train(net, texts, leakage, epochs, leakage_decay,
 
         leakage *= leakage_decay
         net.learn_rate *= learn_rate_decay
+
+    net.stop_confab()
 
 
 def get_net_and_corpus(srcdir, controldir, control_n, lang,
@@ -280,6 +293,7 @@ def main():
             args.epochs = 1
 
     net_kwargs = {}
+    train_kwargs = {}
     for k, v in vars(args).items():
         if k in ("bptt_depth",
                  "hidden_size",
@@ -300,6 +314,14 @@ def main():
                  ):
             net_kwargs[k] = v
 
+        if (v is not None and
+            k in ("confab_interval",
+                  "confab_n",
+                  "confab_len",
+                  "confab_caps_marker",
+                 )):
+            train_kwargs[k] = v
+
     net, texts, problems, v_text = get_net_and_corpus(args.input_dir,
                                                       args.control_corpus,
                                                       args.control_n,
@@ -319,7 +341,7 @@ def main():
     train(net, texts, args.leakage, args.epochs, args.leakage_decay,
           args.learn_rate_decay, args.ignore_start, v_text,
           args.stop_on_validation_reverse, opinion_args,
-          args.filename)
+          args.filename, **train_kwargs)
 
     opinion = opine(net, texts, problems, args.ignore_start)
     save_opinions(args.save, problems=problems, **opinion)
