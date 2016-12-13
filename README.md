@@ -14,5 +14,8 @@ same underlying method and are based on the [recur] project.
 [Caravel]: https://github.com/pan-webis-de/caravel
 [recur]: https://github.com/douglasbagnall/recur
 
+There is a paper describing the approach at
+<https://arxiv.org/abs/1608.04485>.
+
 This software is copyright Douglas Bagnall and is licensed under the
 GPL, version 2 or greater.
